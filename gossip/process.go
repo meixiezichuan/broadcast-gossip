@@ -3,25 +3,27 @@ package gossip
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/meixiezichuan/broadcast-gossip/common"
 	"log"
 	"net"
 )
 
 func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool) {
+	fmt.Println(a.NodeId, " receive msg ")
 	buf := make([]byte, 65535)
 	for {
 		select {
 		case <-stopCh:
-			fmt.Println("Received stop signal, stopping goroutine")
+			fmt.Println(a.NodeId, "Received stop signal, stopping goroutine")
 			return
 		default:
 			n, _, err := conn.ReadFromUDP(buf)
 			if err != nil {
-				log.Printf("Failed to read UDP message: %v", err)
+				log.Printf("%s Failed to read UDP message: %v", a.NodeId, err)
 				continue
 			}
-
-			var msg GossipMessage
+			fmt.Println(a.NodeId, " receive msg n: ", n)
+			var msg common.GossipMessage
 			if err := json.Unmarshal(buf[:n], &msg); err != nil {
 				log.Printf("Failed to unmarshal message: %v", err)
 				continue
@@ -31,60 +33,87 @@ func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool) {
 	}
 }
 
-func (a *Agent) HandleMsg(msg GossipMessage) {
+func (a *Agent) HandleMsg(msg common.GossipMessage) {
+	fmt.Println(a.NodeId, "handle ", msg)
+	//1. first get network topo
+	// get direct node msg
+	dmsg := msg.Self
+	if dmsg.NodeID == a.NodeId {
+		return
+	}
+	// 加入一跳桶
+	rev, exist := a.NodeBuf[dmsg.NodeID]
+	a.Graph.AddEdge(a.NodeId, dmsg.NodeID)
+	if exist {
+		if rev < dmsg.Revision {
+			a.NodeBuf[dmsg.NodeID] = dmsg.Revision
+		}
+	} else {
+		a.NodeBuf[dmsg.NodeID] = dmsg.Revision
+	}
 
-	// add secNodeIP to Direct set
-	srcNode := msg.Self.NodeID
-	a.DirectSet = append(a.DirectSet, srcNode)
-	a.Graph.AddEdge(a.NodeId, srcNode)
-	for _, m := range msg.Direct {
-		a.Graph.AddEdge(srcNode, m.NodeID)
-		a.NodeBuf[m.NodeID] = append(a.NodeBuf[m.NodeID], srcNode)
+	// add msg
+	path := Path{dmsg.NodeID}
+	a.UpdateMsgs(dmsg, path)
 
-		// TODO: compare m.Revision with already received am revision
-		am, exist := a.Msgs[m.NodeID]
-		if exist {
-			if m.Revision <= am.Revision {
-				continue
+	// handle other msg
+	for _, m := range msg.Msgs {
+		a.Graph.AddEdge(dmsg.NodeID, m.PrevNode)
+		// handle msg
+		path = Path{m.PrevNode, dmsg.NodeID}
+		if !common.IsStructEmpty(m.NodeMsg) {
+			if m.NodeMsg.NodeID != a.NodeId {
+				a.UpdateMsgs(m.NodeMsg, path)
 			}
 		}
-		a.Msgs[m.NodeID] = m
-		// write to db
-		n, err := a.DB.Get(m.NodeID)
-		if err != nil {
-			continue
-		}
-		if m.Revision > n.Revision {
-			a.Write2DB(m)
-		}
+		// 如果不在一跳桶，那么将prevNode 加入二跳桶
+		//if !a.Graph.PathExists([]string{a.NodeId, m.PrevNode}) {
+		//
+		//}
 	}
 }
 
 // 处理接收到的Gossip消息
-func (a *Agent) MessageNeedSend(msg NodeMessage) bool {
-	msgNode := msg.NodeID
-	mlst := a.Graph.FindMaxLeafTree(msgNode)
+func (a *Agent) PathExistInMLST(p Path) bool {
+
+	preNode := p[0]
+	mlst := a.Graph.FindMaxLeafTree(preNode)
+	fmt.Println(a.NodeId, "mlst: ")
+	mlst.Display()
+	// if node is leaf, return false
 	if mlst.IsLeaf(a.NodeId) {
 		return false
 	}
-	for _, sendNode := range a.NodeBuf[msgNode] {
-		edge := []string{sendNode, a.NodeId}
-		if mlst.PathExists(edge) {
-			return true
-		}
+
+	if mlst.PathExists(p) {
+		return true
 	}
 	return false
 }
 
-func (a *Agent) Write2DB(msg NodeMessage) {
+func (a *Agent) Write2DB(msg common.NodeMessage) {
 	a.DB.Lock()
 	defer a.DB.Unlock()
 
 	var existingValue string
-	err := a.DB.db.QueryRow(`SELECT value FROM kv WHERE key = ?`, msg.NodeID).Scan(&existingValue)
+	err := a.DB.DB().QueryRow(`SELECT value FROM kv WHERE key = ?`, msg.NodeID).Scan(&existingValue)
 	if err != nil || existingValue == "" {
 		if err := a.DB.Set(msg.NodeID, msg); err == nil {
 			log.Printf("Data synchronized: %s = %v\n", msg.NodeID, msg)
 		}
 	}
+}
+
+func (a *Agent) UpdateMsgs(msg common.NodeMessage, path Path) {
+	_, exist := a.Msgs[msg.NodeID]
+	Hm := HostMsg{
+		Msg: msg,
+	}
+	if exist {
+		sendpath := append(a.Msgs[msg.NodeID].SendPaths, path)
+		Hm.SendPaths = sendpath
+	} else {
+		Hm.SendPaths = []Path{path}
+	}
+	a.Msgs[msg.NodeID] = Hm
 }

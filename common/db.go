@@ -1,4 +1,4 @@
-package gossip
+package common
 
 import (
 	"database/sql"
@@ -11,8 +11,9 @@ type Database struct {
 	db *sql.DB
 }
 
-func NewDatabase() (*Database, error) {
-	db, err := sql.Open("sqlite3", "./gossip.db")
+func NewDatabase(name string) (*Database, error) {
+	dbName := "./" + name + ".db"
+	db, err := sql.Open("sqlite3", dbName)
 	if err != nil {
 		return nil, err
 	}
@@ -62,4 +63,8 @@ func (db *Database) GetAll() (map[string]NodeMessage, error) {
 		data[key] = value
 	}
 	return data, nil
+}
+
+func (db *Database) DB() *sql.DB {
+	return db.db
 }

@@ -1,4 +1,4 @@
-package gossip
+package common
 
 // Gossip消息
 type NodeMessage struct {
@@ -8,7 +8,11 @@ type NodeMessage struct {
 }
 
 type GossipMessage struct {
-	Self   NodeMessage
-	Direct []NodeMessage
-	Other  []NodeMessage
+	Self NodeMessage
+	Msgs []SendMessage
+}
+
+type SendMessage struct {
+	PrevNode string
+	NodeMsg  NodeMessage
 }
