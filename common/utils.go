@@ -27,3 +27,20 @@ func GenerateNodeInfo() map[string]string {
 		"Battery": ba,
 	}
 }
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// Utility function to check if a slice contains a value
+func Contains(slice []string, value string) bool {
+	for _, v := range slice {
+		if v == value {
+			return true
+		}
+	}
+	return false
+}

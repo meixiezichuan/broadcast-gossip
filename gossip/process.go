@@ -6,6 +6,7 @@ import (
 	"github.com/meixiezichuan/broadcast-gossip/common"
 	"log"
 	"net"
+	"strconv"
 )
 
 func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool) {
@@ -19,7 +20,7 @@ func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool) {
 		default:
 			n, _, err := conn.ReadFromUDP(buf)
 			if err != nil {
-				log.Printf("%s Failed to read UDP message: %v", a.NodeId, err)
+				//log.Printf("%s Failed to read UDP message: %v", a.NodeId, err)
 				continue
 			}
 			fmt.Println(a.NodeId, " receive msg n: ", n)
@@ -60,8 +61,8 @@ func (a *Agent) HandleMsg(msg common.GossipMessage) {
 	for _, m := range msg.Msgs {
 		a.Graph.AddEdge(dmsg.NodeID, m.PrevNode)
 		// handle msg
-		path = Path{m.PrevNode, dmsg.NodeID}
 		if !common.IsStructEmpty(m.NodeMsg) {
+			path = Path{m.PrevNode, dmsg.NodeID}
 			if m.NodeMsg.NodeID != a.NodeId {
 				a.UpdateMsgs(m.NodeMsg, path)
 			}
@@ -77,8 +78,8 @@ func (a *Agent) HandleMsg(msg common.GossipMessage) {
 func (a *Agent) PathExistInMLST(p Path) bool {
 
 	preNode := p[0]
-	mlst := a.Graph.FindMaxLeafTree(preNode)
-	fmt.Println(a.NodeId, "mlst: ")
+	mlst, _ := a.Graph.MLST10(preNode)
+	fmt.Println(a.NodeId, " root: ", preNode, " path: ", p, " mlst: ")
 	mlst.Display()
 	// if node is leaf, return false
 	if mlst.IsLeaf(a.NodeId) {
@@ -96,10 +97,11 @@ func (a *Agent) Write2DB(msg common.NodeMessage) {
 	defer a.DB.Unlock()
 
 	var existingValue string
-	err := a.DB.DB().QueryRow(`SELECT value FROM kv WHERE key = ?`, msg.NodeID).Scan(&existingValue)
+	key := msg.NodeID + "_" + strconv.Itoa(msg.Revision)
+	err := a.DB.DB().QueryRow(`SELECT value FROM kv WHERE key = ?`, key).Scan(&existingValue)
 	if err != nil || existingValue == "" {
-		if err := a.DB.Set(msg.NodeID, msg); err == nil {
-			log.Printf("Data synchronized: %s = %v\n", msg.NodeID, msg)
+		if err := a.DB.Set(key, msg); err == nil {
+			log.Printf("Data synchronized: %s = %v\n", key, msg)
 		}
 	}
 }
