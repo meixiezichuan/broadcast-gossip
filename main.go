@@ -84,6 +84,6 @@ func main() {
 	if exist {
 		port, _ = strconv.Atoi(strport)
 	}
-	runAgent(node, port, ep)
+	CarTest(node, port, ep)
 	fmt.Println("All nodes have completed their tasks.")
 }
