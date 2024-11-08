@@ -31,6 +31,22 @@ func runAgent(node string, port int, ep int) {
 	agent.Start(done, ep)
 }
 
+func CarTest(node string, port int, ep int) {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	done := make(chan bool, 1)
+	go func() {
+		sig := <-sigs
+		fmt.Println("Get sig ", sig, "Exiting ……")
+		done <- true
+	}()
+	agent := gossip.InitAgent(node, port)
+	fmt.Println(agent.NodeId, "Start Running ", ep, " epoch.")
+	l := []string{"192.168.31.76", "192.168.31.103", "192.168.31.126", "192.168.31.128"}
+	agent.SetBroadcastList(l)
+	agent.Start(done, ep)
+}
+
 func Simulation(ep int) {
 	// 模拟创建 5 个边缘节点
 	var wg sync.WaitGroup

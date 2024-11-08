@@ -43,8 +43,10 @@ func (a *Agent) HandleMsg(msg common.GossipMessage) {
 		return
 	}
 	// 加入一跳桶
-	rev, exist := a.NodeBuf[dmsg.NodeID]
+	a.WriteMsg(dmsg)
 	a.Graph.AddEdge(a.NodeId, dmsg.NodeID)
+
+	rev, exist := a.NodeBuf[dmsg.NodeID]
 	if exist {
 		if rev < dmsg.Revision {
 			a.NodeBuf[dmsg.NodeID] = dmsg.Revision
@@ -62,15 +64,12 @@ func (a *Agent) HandleMsg(msg common.GossipMessage) {
 		a.Graph.AddEdge(dmsg.NodeID, m.PrevNode)
 		// handle msg
 		if !common.IsStructEmpty(m.NodeMsg) {
+			a.WriteMsg(m.NodeMsg)
 			path = Path{m.PrevNode, dmsg.NodeID}
 			if m.NodeMsg.NodeID != a.NodeId {
 				a.UpdateMsgs(m.NodeMsg, path)
 			}
 		}
-		// 如果不在一跳桶，那么将prevNode 加入二跳桶
-		//if !a.Graph.PathExists([]string{a.NodeId, m.PrevNode}) {
-		//
-		//}
 	}
 }
 

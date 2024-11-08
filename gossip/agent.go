@@ -38,6 +38,7 @@ type Agent struct {
 	Msgs          map[string]HostMsg
 	Graph         *common.Graph
 	MsgCnt        int
+	BroadcastList []string
 }
 
 var TimeOutRev = 5
@@ -65,6 +66,10 @@ func InitDB(name string) *common.Database {
 	return db
 }
 
+func (a *Agent) SetBroadcastList(l []string) {
+	a.BroadcastList = l
+}
+
 // 生成Gossip消息
 func (a *Agent) generateGossipMessage() common.GossipMessage {
 	sendMsg := common.GossipMessage{}
@@ -73,17 +78,7 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 		sendMsg = a.Greeting()
 		return sendMsg
 	}
-	filename := a.NodeId
-	file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		fmt.Println("Error opening or creating file:", err)
-	}
 
-	msgWritten := self.NodeID + "_" + strconv.Itoa(self.Revision) + "\n"
-	_, err = file.WriteString(msgWritten)
-	if err != nil {
-		fmt.Println("Error writing to file:", err)
-	}
 	//a.Write2DB(self)
 
 	self.Data = common.GenerateNodeInfo()
@@ -97,11 +92,7 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 		//}
 		//sendMsgs = append(sendMsgs, s)
 		//a.Write2DB(m.Msg)
-		msgWritten = m.Msg.NodeID + "_" + strconv.Itoa(m.Msg.Revision) + "\n"
-		_, err = file.WriteString(msgWritten)
-		if err != nil {
-			fmt.Println("Error writing to file:", err)
-		}
+
 		paths := m.SendPaths
 		sort.Slice(paths, func(i, j int) bool {
 			return paths[i][0] < paths[j][0]
@@ -122,7 +113,6 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 		delete(a.Msgs, n)
 	}
 	// Ensure the file is closed when done
-	file.Close()
 	// add adj information
 	for n, v := range a.NodeBuf {
 		// check if timeout
@@ -143,6 +133,7 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 
 func (a *Agent) Start(stopCh chan bool, ep int) {
 	addr, err := net.ResolveUDPAddr("udp", a.ListenAddr)
+	TimeOutRev = ep
 	if err != nil {
 		log.Fatalf("Failed to resolve UDP address: %v", err)
 	}
@@ -154,6 +145,12 @@ func (a *Agent) Start(stopCh chan bool, ep int) {
 	defer func() {
 		conn.Close()
 		fmt.Println(a.NodeId, "Sent Message Count: ", a.MsgCnt, " in ", a.Revision, "epochs")
+		filename := a.NodeId
+		file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err == nil {
+			strings := fmt.Sprintf("Sent Message Count: %d in %d Epochs", a.MsgCnt, a.Revision)
+			file.WriteString(strings)
+		}
 	}()
 
 	go a.ReceiveMsg(conn, stopCh)
@@ -189,30 +186,15 @@ func (a *Agent) DoBroadCast(msg common.GossipMessage) {
 		}
 	}
 	a.MsgCnt = a.MsgCnt + l
-	//for i := 0; i < 5; i++ {
-	//	baddr := "255.255.255.255:" + strconv.Itoa(9898+i)
-	baddr := a.BroadcastAddr
-	addr, err := net.ResolveUDPAddr("udp", baddr)
-	if err != nil {
-		fmt.Printf("%s Error resolving address: %v\n", a.NodeId, err)
-		return
+	if len(a.BroadcastList) > 0 {
+		for _, h := range a.BroadcastList {
+			baddr := h + a.ListenAddr
+			a.SendMsg(baddr, msg)
+		}
+	} else {
+		baddr := a.BroadcastAddr
+		a.SendMsg(baddr, msg)
 	}
-
-	conn, err := net.DialUDP("udp", nil, addr)
-	if err != nil {
-		fmt.Printf("%s Error dialing UDP: %v\n", a.NodeId, err)
-		return
-	}
-
-	bytes, err := json.Marshal(msg)
-	defer conn.Close()
-	_, err = conn.Write(bytes)
-	if err != nil {
-		fmt.Printf("%s Error write UDP: %v\n", a.NodeId, err)
-		return
-	}
-	//}
-
 	fmt.Println(a.NodeId, "Send ", "msg: %v", msg)
 }
 
@@ -248,5 +230,40 @@ func (a *Agent) UpdateGraph() {
 		if a.Revision-r > TimeOutRev {
 			a.Graph.RemoveEdge(a.NodeId, n)
 		}
+	}
+}
+
+func (a *Agent) WriteMsg(msg common.NodeMessage) {
+	filename := a.NodeId
+	file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Println("Error opening or creating file:", err)
+	}
+	defer file.Close()
+	msgWritten := msg.NodeID + "_" + strconv.Itoa(msg.Revision) + "\n"
+	_, err = file.WriteString(msgWritten)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+	}
+}
+
+func (a *Agent) SendMsg(baddr string, msg common.GossipMessage) {
+	addr, err := net.ResolveUDPAddr("udp", baddr)
+	if err != nil {
+		fmt.Printf("%s Error resolving address: %v\n", a.NodeId, err)
+		return
+	}
+
+	conn, err := net.DialUDP("udp", nil, addr)
+	if err != nil {
+		fmt.Printf("%s Error dialing UDP: %v\n", a.NodeId, err)
+		return
+	}
+
+	bytes, err := json.Marshal(msg)
+	defer conn.Close()
+	_, err = conn.Write(bytes)
+	if err != nil {
+		fmt.Printf("%s Error write UDP: %v\n", a.NodeId, err)
 	}
 }
