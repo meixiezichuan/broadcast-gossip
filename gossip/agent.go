@@ -33,7 +33,6 @@ type Agent struct {
 	ListenAddr    string
 	NodeId        string
 	Revision      int
-	DB            *common.Database
 	NodeBuf       map[string]int
 	Msgs          map[string]HostMsg
 	Graph         *common.Graph
@@ -49,21 +48,12 @@ func InitAgent(nodeId string, port int) *Agent {
 		ListenAddr:    ":" + strconv.Itoa(port),
 		NodeId:        nodeId,
 		Revision:      0,
-		DB:            InitDB(nodeId),
 		NodeBuf:       make(map[string]int),
 		Msgs:          make(map[string]HostMsg),
 		Graph:         common.NewGraph(),
 		MsgCnt:        0,
 	}
 	return &agent
-}
-
-func InitDB(name string) *common.Database {
-	db, err := common.NewDatabase(name)
-	if err != nil {
-		log.Fatalf("Failed to open database: %v", err)
-	}
-	return db
 }
 
 func (a *Agent) SetBroadcastList(l []string) {

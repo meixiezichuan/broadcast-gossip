@@ -6,7 +6,6 @@ import (
 	"github.com/meixiezichuan/broadcast-gossip/common"
 	"log"
 	"net"
-	"strconv"
 )
 
 func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool) {
@@ -89,20 +88,6 @@ func (a *Agent) PathExistInMLST(p Path) bool {
 		return true
 	}
 	return false
-}
-
-func (a *Agent) Write2DB(msg common.NodeMessage) {
-	a.DB.Lock()
-	defer a.DB.Unlock()
-
-	var existingValue string
-	key := msg.NodeID + "_" + strconv.Itoa(msg.Revision)
-	err := a.DB.DB().QueryRow(`SELECT value FROM kv WHERE key = ?`, key).Scan(&existingValue)
-	if err != nil || existingValue == "" {
-		if err := a.DB.Set(key, msg); err == nil {
-			log.Printf("Data synchronized: %s = %v\n", key, msg)
-		}
-	}
 }
 
 func (a *Agent) UpdateMsgs(msg common.NodeMessage, path Path) {
