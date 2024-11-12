@@ -198,7 +198,7 @@ func (a *Agent) BroadCast(stopCh chan bool, ep int) {
 		default:
 			if a.Revision == ep {
 				fmt.Println("********", a.NodeId, "ran ", ep, " epoch finished.", "********")
-				stopCh <- true
+				//stopCh <- true
 				return
 			}
 			fmt.Println(a.NodeId, " in ", a.Revision, " graph1: ----")
