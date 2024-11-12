@@ -5,6 +5,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/meixiezichuan/broadcast-gossip/gossip"
 	"math/rand"
+	"net"
 	"os"
 	"os/signal"
 	"strconv"
@@ -47,6 +48,28 @@ func Simulation(ep int) {
 	wg.Wait()
 }
 
+func getLocalIP() string {
+	i := rand.Intn(100)
+	ip := "node" + strconv.Itoa(i)
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		fmt.Println("Get Interface Error:", err)
+		return ""
+	}
+
+	for _, addr := range addrs {
+		// Check if the address is an IP address (skip loopback)
+		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
+			if ipNet.IP.To4() != nil {
+				ip = ipNet.IP.String()
+				fmt.Println("Local IP address:", ip)
+				return ip
+			}
+		}
+	}
+	return ip
+}
+
 func main() {
 	ep := 100
 	if len(os.Args) > 1 {
@@ -59,8 +82,7 @@ func main() {
 
 	node, exist := os.LookupEnv("Hostname")
 	if !exist {
-		i := rand.Intn(100)
-		node = "node" + strconv.Itoa(i)
+		node = getLocalIP()
 	}
 
 	port := 9898
