@@ -6,7 +6,6 @@ import (
 	"github.com/meixiezichuan/broadcast-gossip/common"
 	"log"
 	"net"
-	"strconv"
 )
 
 func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool) {
@@ -43,8 +42,10 @@ func (a *Agent) HandleMsg(msg common.GossipMessage) {
 		return
 	}
 	// 加入一跳桶
-	rev, exist := a.NodeBuf[dmsg.NodeID]
+	a.WriteMsg(dmsg)
 	a.Graph.AddEdge(a.NodeId, dmsg.NodeID)
+
+	rev, exist := a.NodeBuf[dmsg.NodeID]
 	if exist {
 		if rev < dmsg.Revision {
 			a.NodeBuf[dmsg.NodeID] = dmsg.Revision
@@ -62,15 +63,12 @@ func (a *Agent) HandleMsg(msg common.GossipMessage) {
 		a.Graph.AddEdge(dmsg.NodeID, m.PrevNode)
 		// handle msg
 		if !common.IsStructEmpty(m.NodeMsg) {
+			a.WriteMsg(m.NodeMsg)
 			path = Path{m.PrevNode, dmsg.NodeID}
 			if m.NodeMsg.NodeID != a.NodeId {
 				a.UpdateMsgs(m.NodeMsg, path)
 			}
 		}
-		// 如果不在一跳桶，那么将prevNode 加入二跳桶
-		//if !a.Graph.PathExists([]string{a.NodeId, m.PrevNode}) {
-		//
-		//}
 	}
 }
 
@@ -90,20 +88,6 @@ func (a *Agent) PathExistInMLST(p Path) bool {
 		return true
 	}
 	return false
-}
-
-func (a *Agent) Write2DB(msg common.NodeMessage) {
-	a.DB.Lock()
-	defer a.DB.Unlock()
-
-	var existingValue string
-	key := msg.NodeID + "_" + strconv.Itoa(msg.Revision)
-	err := a.DB.DB().QueryRow(`SELECT value FROM kv WHERE key = ?`, key).Scan(&existingValue)
-	if err != nil || existingValue == "" {
-		if err := a.DB.Set(key, msg); err == nil {
-			log.Printf("Data synchronized: %s = %v\n", key, msg)
-		}
-	}
 }
 
 func (a *Agent) UpdateMsgs(msg common.NodeMessage, path Path) {
