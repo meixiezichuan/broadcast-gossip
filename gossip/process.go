@@ -6,9 +6,12 @@ import (
 	"github.com/meixiezichuan/broadcast-gossip/common"
 	"log"
 	"net"
+	"strings"
+	"strconv"
+	
 )
 
-func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool) {
+func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool, distance int) {
 	fmt.Println(a.NodeId, " receive msg ")
 	buf := make([]byte, 65535)
 	for {
@@ -28,12 +31,12 @@ func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool) {
 				log.Printf("Failed to unmarshal message: %v", err)
 				continue
 			}
-			a.HandleMsg(msg)
+			a.HandleMsg(msg, distance)
 		}
 	}
 }
 
-func (a *Agent) HandleMsg(msg common.GossipMessage) {
+func (a *Agent) HandleMsg(msg common.GossipMessage, distance int) {
 	fmt.Println(a.NodeId, "handle ", msg)
 	//1. first get network topo
 	// get direct node msg
@@ -41,17 +44,37 @@ func (a *Agent) HandleMsg(msg common.GossipMessage) {
 	if dmsg.NodeID == a.NodeId {
 		return
 	}
+
+	lastDot := strings.LastIndex(dmsg.NodeID, ".")
+	lastPart := dmsg.NodeID[lastDot+1:]
+	receiveNum, _:= strconv.Atoi(lastPart)
+
+	lastDot = strings.LastIndex(a.NodeId, ".")
+	lastPart = a.NodeId[lastDot+1:]
+	num, _ := strconv.Atoi(lastPart)
+
+    distance1 := (receiveNum - num + 255) % 255
+    distance2 := (num - receiveNum + 255) % 255
+    if distance1 > distance && distance2 > distance {
+        return
+    }
 	// 加入一跳桶
 	a.WriteMsg(dmsg)
 	a.Graph.AddEdge(a.NodeId, dmsg.NodeID)
 
-	rev, exist := a.NodeBuf[dmsg.NodeID]
+	rev, exist := func() (int, bool) {
+		value, ok := a.NodeBuf.Load(dmsg.NodeID)
+		if ok {
+			return value.(int), true 
+		}
+		return 0, false 
+	}()
 	if exist {
 		if rev < dmsg.Revision {
-			a.NodeBuf[dmsg.NodeID] = dmsg.Revision
+			a.NodeBuf.Store(dmsg.NodeID, dmsg.Revision)
 		}
 	} else {
-		a.NodeBuf[dmsg.NodeID] = dmsg.Revision
+		a.NodeBuf.Store(dmsg.NodeID, dmsg.Revision)
 	}
 
 	// add msg
@@ -91,15 +114,21 @@ func (a *Agent) PathExistInMLST(p Path) bool {
 }
 
 func (a *Agent) UpdateMsgs(msg common.NodeMessage, path Path) {
-	_, exist := a.Msgs[msg.NodeID]
+	if msg.Revision >= 100 {
+		return
+	}
+	value, exist := a.Msgs.Load(msg.NodeID)
 	Hm := HostMsg{
 		Msg: msg,
 	}
+
 	if exist {
-		sendpath := append(a.Msgs[msg.NodeID].SendPaths, path)
+		existingHostMsg := value.(HostMsg) 
+		sendpath := append(existingHostMsg.SendPaths, path)
 		Hm.SendPaths = sendpath
 	} else {
 		Hm.SendPaths = []Path{path}
 	}
-	a.Msgs[msg.NodeID] = Hm
+
+	a.Msgs.Store(msg.NodeID, Hm)
 }

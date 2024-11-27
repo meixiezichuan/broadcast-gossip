@@ -4,11 +4,12 @@ import (
 	"container/list"
 	"fmt"
 	"sort"
+	"sync"
 )
 
 // Graph represents an undirected graph using an adjacency list with string nodes
 type Graph struct {
-	adjList map[string][]string
+	adjList sync.Map
 	root    string
 }
 
@@ -20,8 +21,7 @@ type DPState struct {
 // NewGraph creates a new graph
 func NewGraph() *Graph {
 	return &Graph{
-		adjList: make(map[string][]string),
-		root:    "",
+		root: "",
 	}
 }
 
@@ -35,16 +35,33 @@ func (g *Graph) AddEdge(v1, v2 string) {
 	if g.PathExists(path1) || g.PathExists(path2) {
 		return
 	}
-	g.adjList[v1] = append(g.adjList[v1], v2)
-	g.adjList[v2] = append(g.adjList[v2], v1)
+	addToAdjList(&g.adjList, v1, v2)
+	addToAdjList(&g.adjList, v2, v1)
 }
 
 // RemoveEdge 删除两个顶点之间的边
 func (g *Graph) RemoveEdge(v1, v2 string) {
-	// 删除 v1 邻接表中与 v2 的边
-	g.adjList[v1] = removeElement(g.adjList[v1], v2)
-	// 删除 v2 邻接表中与 v1 的边
-	g.adjList[v2] = removeElement(g.adjList[v2], v1)
+	removeFromAdjList(&g.adjList, v1, v2)
+	removeFromAdjList(&g.adjList, v2, v1)
+}
+
+// Helper function to add a neighbor to the adjacency list
+func addToAdjList(adjList *sync.Map, node, neighbor string) {
+	neighbors, _ := adjList.LoadOrStore(node, []string{})
+	updatedNeighbors := append(neighbors.([]string), neighbor)
+	adjList.Store(node, updatedNeighbors)
+}
+
+// Helper function to remove a neighbor from the adjacency list
+func removeFromAdjList(adjList *sync.Map, node, neighbor string) {
+	if neighbors, ok := adjList.Load(node); ok {
+		updatedNeighbors := removeElement(neighbors.([]string), neighbor)
+		if len(updatedNeighbors) == 0 {
+			adjList.Delete(node)
+		} else {
+			adjList.Store(node, updatedNeighbors)
+		}
+	}
 }
 
 // 辅助函数：从切片中删除指定元素
@@ -55,6 +72,13 @@ func removeElement(slice []string, element string) []string {
 		}
 	}
 	return slice
+}
+
+func (g *Graph) FindNeighbor(node string) []string {
+	if neighbors, ok := g.adjList.Load(node); ok {
+		return neighbors.([]string)
+	}
+	return nil
 }
 
 // FindMaxLeafTree finds the maximum leaf spanning tree starting from the given root
@@ -68,7 +92,7 @@ func (g *Graph) FindMaxLeafTree(root string) *Graph {
 
 	for queue.Len() > 0 {
 		node := queue.Remove(queue.Front()).(string)
-		for _, neighbor := range g.adjList[node] {
+		for _, neighbor := range g.FindNeighbor(node) {
 			if !visited[neighbor] {
 				tree.AddEdge(node, neighbor)
 				queue.PushBack(neighbor)
@@ -83,8 +107,12 @@ func (g *Graph) FindMaxLeafTree(root string) *Graph {
 func (g *Graph) GetSortedNodes(nodes []string) []string {
 	nodeDegrees := make(map[string]int)
 	for _, node := range nodes {
-		neighbors := g.adjList[node]
-		nodeDegrees[node] = len(neighbors)
+		neighbors, ok := g.adjList.Load(node)
+		if ok {
+			nodeDegrees[node] = len(neighbors.([]string))
+		} else {
+			nodeDegrees[node] = 0
+		}
 	}
 	// Convert map to slice and sort
 	ns := make([]string, 0, len(nodeDegrees))
@@ -111,18 +139,25 @@ func (g *Graph) MinDominatingSetFromRoot(root string) []string {
 	covered[root] = true
 
 	// 标记根节点的邻居为已覆盖
-	for _, neighbor := range g.adjList[root] {
+	for _, neighbor := range g.FindNeighbor(root) {
 		covered[neighbor] = true
 	}
 
 	var nodes []string
-	for n, _ := range g.adjList {
-		nodes = append(nodes, n)
-	}
+	g.adjList.Range(func(key, value interface{}) bool {
+		nodes = append(nodes, key.(string))
+		return true
+	})
+
+	adjListLength := 0
+	g.adjList.Range(func(key, value interface{}) bool {
+		adjListLength++
+		return true
+	})
 
 	sortedNodes := g.GetSortedNodes(nodes)
 	// 循环直到所有节点都被覆盖
-	for len(covered) < len(g.adjList) {
+	for len(covered) < adjListLength {
 		var maxCoverNode string
 		maxCoverCount := -1
 
@@ -134,9 +169,11 @@ func (g *Graph) MinDominatingSetFromRoot(root string) []string {
 
 			// 计算未覆盖邻居的数量
 			coverCount := 0
-			for _, neighbor := range g.adjList[node] {
-				if !covered[neighbor] {
-					coverCount++
+			if neighbors, ok := g.adjList.Load(node); ok {
+				for _, neighbor := range neighbors.([]string) {
+					if !covered[neighbor] {
+						coverCount++
+					}
 				}
 			}
 
@@ -151,8 +188,10 @@ func (g *Graph) MinDominatingSetFromRoot(root string) []string {
 		if maxCoverNode != "" {
 			dominatingSet = append(dominatingSet, maxCoverNode)
 			covered[maxCoverNode] = true
-			for _, neighbor := range g.adjList[maxCoverNode] {
-				covered[neighbor] = true
+			if neighbors, ok := g.adjList.Load(maxCoverNode); ok {
+				for _, neighbor := range neighbors.([]string) {
+					covered[neighbor] = true
+				}
 			}
 		}
 	}
@@ -208,18 +247,22 @@ func (g *Graph) MaxLeafSpanningTree(root string) (*Graph, int, []string) {
 			}
 			isLeaf := true
 			visited[node] = true
-			for _, neighbor := range g.adjList[node] {
-				if neighbor == parent {
-					continue
-				}
-				isLeaf = false
-				// 根据DP状态选择是否包括子节点
-				if dp[neighbor].included >= dp[neighbor].notIncluded {
-					buildTree(neighbor, node, true) // 包括子节点
-				} else {
-					buildTree(neighbor, node, false) // 不包括子节点
+
+			if neighbors, ok := g.adjList.Load(node); ok {
+				for _, neighbor := range neighbors.([]string) { // 类型断言为 []string
+					if neighbor == parent {
+						continue
+					}
+					isLeaf = false
+					// 根据DP状态选择是否包括子节点
+					if dp[neighbor].included >= dp[neighbor].notIncluded {
+						buildTree(neighbor, node, true) // 包括子节点
+					} else {
+						buildTree(neighbor, node, false) // 不包括子节点
+					}
 				}
 			}
+
 			if isLeaf {
 				leafNodes = append(leafNodes, node) // 记录叶子节点
 			}
@@ -228,8 +271,10 @@ func (g *Graph) MaxLeafSpanningTree(root string) (*Graph, int, []string) {
 	buildTree(root, "", dp[root].included >= dp[root].notIncluded)
 
 	mlstree := &Graph{
-		adjList: tree,
-		root:    root,
+		root: root,
+	}
+	for key, value := range tree {
+		mlstree.adjList.Store(key, value)
 	}
 
 	return mlstree, maxLeaves, leafNodes
@@ -260,14 +305,16 @@ func (g *Graph) DFS(root string, dp map[string]DPState) {
 
 		fmt.Println("node: ", node)
 		dp[node] = DPState{0, 1} // 初始化包含当前节点
-		for _, neighbor := range g.adjList[node] {
-			if neighbor == parent {
-				continue // 避免回到父节点
+		if neighbors, ok := g.adjList.Load(node); ok {
+			for _, neighbor := range neighbors.([]string) {
+				if neighbor == parent {
+					continue // 避免回到父节点
+				}
+				stack = append(stack, struct {
+					node   string
+					parent string
+				}{node: neighbor, parent: node}) // 将邻居添加到栈中
 			}
-			stack = append(stack, struct {
-				node   string
-				parent string
-			}{node: neighbor, parent: node}) // 将邻居添加到栈中
 		}
 	}
 
@@ -278,19 +325,22 @@ func (g *Graph) DFS(root string, dp map[string]DPState) {
 		node := top.node
 		parent := top.parent
 
-		for _, neighbor := range g.adjList[node] {
-			if neighbor == parent {
-				continue // 避免回到父节点
+		if neighbors, ok := g.adjList.Load(node); ok {
+			for _, neighbor := range neighbors.([]string) { // 类型断言为 []string
+				if neighbor == parent {
+					continue // 避免回到父节点
+				}
+
+				stack = append(stack, struct {
+					node   string
+					parent string
+				}{node: neighbor, parent: node}) // 将邻居添加到栈中
+
+				notIcud := dp[node].notIncluded + dp[neighbor].included
+				icud := dp[node].included + max(dp[neighbor].notIncluded, dp[neighbor].included)
+
+				dp[node] = DPState{notIncluded: notIcud, included: icud}
 			}
-
-			stack = append(stack, struct {
-				node   string
-				parent string
-			}{node: neighbor, parent: node}) // 将邻居添加到栈中
-			notIcud := dp[node].notIncluded + dp[neighbor].included
-			icud := dp[node].included + max(dp[neighbor].notIncluded, dp[neighbor].included)
-
-			dp[node] = DPState{notIncluded: notIcud, included: icud}
 		}
 	}
 }
@@ -319,10 +369,13 @@ func (g *Graph) BuildMDSTree(root string) *Graph {
 			tree.AddEdge(parent, node)
 			//tree[parent] = append(tree[parent], node)
 		}
-		for _, neighbor := range g.adjList[node] {
-			if !visited[neighbor] {
-				tree.AddEdge(neighbor, node)
-				dfs(neighbor, node)
+
+		if neighbors, ok := g.adjList.Load(node); ok {
+			for _, neighbor := range neighbors.([]string) { // 类型断言为 []string
+				if !visited[neighbor] {
+					tree.AddEdge(neighbor, node)
+					dfs(neighbor, node)
+				}
 			}
 		}
 	}
@@ -341,11 +394,13 @@ func (g *Graph) BuildSpanningTree(mds []string) map[string][]string {
 	var dfs func(node string)
 	dfs = func(node string) {
 		visited[node] = true
-		for _, neighbor := range g.adjList[node] {
-			if !visited[neighbor] {
-				tree[node] = append(tree[node], neighbor)
-				tree[neighbor] = append(tree[neighbor], node)
-				dfs(neighbor)
+		if neighbors, ok := g.adjList.Load(node); ok {
+			for _, neighbor := range neighbors.([]string) {
+				if !visited[neighbor] {
+					tree[node] = append(tree[node], neighbor)
+					tree[neighbor] = append(tree[neighbor], node)
+					dfs(neighbor)
+				}
 			}
 		}
 	}
@@ -365,12 +420,10 @@ func (g *Graph) BST(root string) *Graph {
 	adj := g.BuildSpanningTree(mds)
 	tree := NewGraph()
 	tree.root = root
-	tree.adjList = adj
+	for key, value := range adj {
+		tree.adjList.Store(key, value)
+	}
 	return tree
-}
-
-func (g *Graph) FindNeighbor(node string) []string {
-	return g.adjList[node]
 }
 
 // IsLeaf checks if a given node is a leaf in the tree
@@ -379,8 +432,11 @@ func (g *Graph) IsLeaf(node string) bool {
 	if g.root == node {
 		return false
 	}
-	edges, exists := g.adjList[node]
-	return exists && len(edges) == 1
+	edges, exists := g.adjList.Load(node)
+	if !exists {
+		return false
+	}
+	return len(edges.([]string)) == 1
 }
 
 func (g *Graph) PathExistsInTree(currentNode string, path []string) bool {
@@ -393,13 +449,14 @@ func (g *Graph) PathExistsInTree(currentNode string, path []string) bool {
 	}
 
 	// 获取当前节点的所有子节点
-	children, exists := g.adjList[currentNode]
+	children, exists := g.adjList.Load(currentNode)
 	if !exists {
 		return false
 	}
 
 	// 检查路径的下一个节点是否是当前节点的子节点
-	for _, child := range children {
+	childList := children.([]string)
+	for _, child := range childList {
 		if child == path[1] {
 			// 递归检查子节点的路径
 			return g.PathExistsInTree(child, path[1:])
@@ -419,10 +476,12 @@ func (g *Graph) PathExists(path []string) bool {
 	// Not a tree
 	for i := 0; i < len(path)-1; i++ {
 		found := false
-		for _, neighbor := range g.adjList[path[i]] {
-			if neighbor == path[i+1] {
-				found = true
-				break
+		if neighbors, ok := g.adjList.Load(path[i]); ok {
+			for _, neighbor := range neighbors.([]string) {
+				if neighbor == path[i+1] {
+					found = true
+					break
+				}
 			}
 		}
 		if !found {
@@ -451,15 +510,17 @@ func (g *Graph) MLST2DFS(root string) (int, map[string][]string, []string) {
 		state := DPMState{0, nil} // 初始化状态
 		isLeaf := true            // 假设当前节点是叶子节点
 
-		for _, neighbor := range g.adjList[node] {
-			if neighbor == parent || visited[neighbor] {
-				continue // 跳过父节点
-			}
-			childState := dfs(neighbor, node)         // 递归访问邻居
-			state.maxLeaves += childState.maxLeaves   // 更新叶子数量
-			tree[node] = append(tree[node], neighbor) // 记录树结构
+		if neighbors, ok := g.adjList.Load(node); ok {
+			for _, neighbor := range neighbors.([]string) {
+				if neighbor == parent || visited[neighbor] {
+					continue // 跳过父节点或已访问节点
+				}
+				childState := dfs(neighbor, node)         // 递归访问邻居
+				state.maxLeaves += childState.maxLeaves   // 更新叶子数量
+				tree[node] = append(tree[node], neighbor) // 记录树结构
 
-			isLeaf = false // 发现子节点，当前节点不是叶子节点
+				isLeaf = false // 发现子节点，当前节点不是叶子节点
+			}
 		}
 
 		if isLeaf {
@@ -502,26 +563,27 @@ func (g *Graph) MLSTBFS(root string) (int, map[string][]string, []string) {
 			isLeaf := true            // 假设当前节点是叶子节点
 
 			// 获取并排序邻接节点，确保顺序一致
-			neighbors := g.adjList[node]
-			sort.Strings(neighbors) // 排序邻接节点
+			if neighbors, ok := g.adjList.Load(node); ok {
+				neighborList := neighbors.([]string)
+				sort.Strings(neighborList) // 排序邻接节点
 
-			for _, neighbor := range neighbors {
-				if visited[neighbor] {
-					continue // 跳过已访问的节点
-				}
-				queue = append(queue, neighbor) // 入队
-				visited[neighbor] = true        // 标记为已访问
-				isLeaf = false                  // 当前节点不是叶子节点
+				for _, neighbor := range neighborList {
+					if visited[neighbor] {
+						continue // 跳过已访问的节点
+					}
+					queue = append(queue, neighbor) // 入队
+					visited[neighbor] = true        // 标记为已访问
+					isLeaf = false                  // 当前节点不是叶子节点
 
-				// 初始化邻接节点的状态
-				if _, exists := levelStates[neighbor]; !exists {
-					levelStates[neighbor] = DPMState{0, nil}
+					// 初始化邻接节点的状态
+					if _, exists := levelStates[neighbor]; !exists {
+						levelStates[neighbor] = DPMState{0, nil}
+					}
+					childState := levelStates[neighbor]
+					state.maxLeaves += childState.maxLeaves   // 更新叶子数量
+					tree[node] = append(tree[node], neighbor) // 记录树结构
 				}
-				childState := levelStates[neighbor]
-				state.maxLeaves += childState.maxLeaves   // 更新叶子数量
-				tree[node] = append(tree[node], neighbor) // 记录树结构
 			}
-
 			if isLeaf {
 				state.maxLeaves = 1                             // 叶子节点自身计数
 				state.leafNodes = append(state.leafNodes, node) // 记录叶子节点
@@ -556,17 +618,24 @@ func (g *Graph) MLSTBFS(root string) (int, map[string][]string, []string) {
 
 // Display prints the adjacency list of the graph
 func (g *Graph) Display() {
-	for vertex, edges := range g.adjList {
+	g.adjList.Range(func(key, value interface{}) bool {
+		vertex := key.(string)
+		edges := value.([]string)
 		fmt.Printf("%s -> %v\n", vertex, edges)
-	}
+		return true
+	})
 }
 
 func (g *Graph) Sotred() {
 	fmt.Println("Before sorted: ---")
 	g.Display()
-	for vertex, edges := range g.adjList {
-		g.adjList[vertex] = g.GetSortedNodes(edges)
-	}
+	g.adjList.Range(func(key, value interface{}) bool {
+		vertex := key.(string)
+		edges := value.([]string)
+		sortedEdges := g.GetSortedNodes(edges)
+		g.adjList.Store(vertex, sortedEdges)
+		return true
+	})
 	fmt.Println("After sorted: ---")
 	g.Display()
 }

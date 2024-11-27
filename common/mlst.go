@@ -23,14 +23,17 @@ func (g *Graph) MLST4(root string) (int, map[string][]string) {
 		childrenLeaves := 0
 		isLeaf := true // 假设当前节点是叶子节点
 
-		for _, neighbor := range g.adjList[node] {
-			if visited[neighbor] {
-				continue
+		// 使用 sync.Map 获取邻居节点
+		if neighbors, ok := g.adjList.Load(node); ok {
+			for _, neighbor := range neighbors.([]string) {
+				if visited[neighbor] {
+					continue
+				}
+				isLeaf = false
+				childLeaves := dfs(neighbor) // 递归获取子节点的叶子数量
+				childrenLeaves += childLeaves
+				tree[node] = append(tree[node], neighbor) // 记录树结构
 			}
-			isLeaf = false
-			childLeaves := dfs(neighbor) // 递归获取子节点的叶子数量
-			childrenLeaves += childLeaves
-			tree[node] = append(tree[node], neighbor) // 记录树结构
 		}
 
 		if isLeaf {
@@ -68,11 +71,14 @@ func (g *Graph) MLST5(root string) (int, []string) {
 		isLeaf := true
 		children := 0
 
-		for _, neighbor := range g.adjList[node] {
-			if !visited[neighbor] {
-				isLeaf = false
-				children++
-				dfs(neighbor)
+		// 使用 sync.Map 获取邻居节点
+		if neighbors, ok := g.adjList.Load(node); ok {
+			for _, neighbor := range neighbors.([]string) {
+				if !visited[neighbor] {
+					isLeaf = false
+					children++
+					dfs(neighbor)
+				}
 			}
 		}
 
@@ -101,11 +107,14 @@ func (g *Graph) MLST6(root string) int {
 		isLeaf := true
 		children := 0
 
-		for _, neighbor := range g.adjList[node] {
-			if !visited[neighbor] {
-				isLeaf = false
-				children++
-				dfs(neighbor)
+		// 使用 sync.Map 获取邻居节点
+		if neighbors, ok := g.adjList.Load(node); ok {
+			for _, neighbor := range neighbors.([]string) {
+				if !visited[neighbor] {
+					isLeaf = false
+					children++
+					dfs(neighbor)
+				}
 			}
 		}
 
@@ -128,19 +137,22 @@ func (g *Graph) ConnectRootToMDS(root string) *Graph {
 	tree.root = root
 	connected := map[string]bool{root: true}
 
-	for _, node := range g.adjList[root] {
-		connected[node] = true
-		tree.AddEdge(root, node)
+	// 使用 sync.Map 获取邻居节点
+	if neighbors, ok := g.adjList.Load(root); ok {
+		for _, node := range neighbors.([]string) {
+			connected[node] = true
+			tree.AddEdge(root, node)
+		}
 	}
 
 	// Add the root to the tree
 	for _, node := range mds {
 		if node != root {
 
-			// If the node is a neighbor of the root, connect directly，
-			// else node is grandchild or grandgrandchild of root, since the graph  is 3 degree deep
+			// 如果节点是根节点的邻居，直接连接，
+			// 否则节点是根的孙子节点，因为图是三度深
 			if !connected[node] {
-				// Otherwise, find the best parent to connect the node
+				// 否则，找到最佳父节点来连接节点
 				_ = findBestParent(g, node, connected, mds, tree)
 			}
 		}
@@ -152,19 +164,27 @@ func (g *Graph) ConnectRootToMDS(root string) *Graph {
 // Helper function to find the best parent for a given node
 func findBestParent(g *Graph, node string, connected map[string]bool, mds []string, tree *Graph) string {
 	var bestn string
-	neighbors := g.adjList[node]
+	neighbors := []string{}
+	// 使用 sync.Map 获取邻居节点
+	if nbs, ok := g.adjList.Load(node); ok {
+		neighbors = nbs.([]string)
+	}
 	sort.Strings(neighbors)
 
 	bestn, _ = g.findMaxMdsNode(neighbors, mds)
 
-	// node is grandgrandchild of root
+	// node 是根的孙子节点
 	if connected[bestn] {
 		tree.AddEdge(bestn, node)
 		return bestn
 	}
 
-	// node is grand-grandchild
-	nns := g.adjList[bestn]
+	// node 是根的曾孙节点
+	nns := []string{}
+	// 使用 sync.Map 获取邻居节点
+	if nnb, ok := g.adjList.Load(bestn); ok {
+		nns = nnb.([]string)
+	}
 	sort.Strings(nns)
 	bestnn, _ := g.findMaxMdsNode(nns, mds)
 	connected[bestn] = true
@@ -182,9 +202,12 @@ func (g *Graph) findMaxMdsNode(nodes []string, mds []string) (string, int) {
 	mxmdsc := 0
 	for _, n := range neighbors {
 		mdsc := 0
-		for _, nn := range g.adjList[n] {
-			if Contains(mds, nn) {
-				mdsc++
+		// 使用 sync.Map 获取邻居节点
+		if adj, ok := g.adjList.Load(n); ok {
+			for _, nn := range adj.([]string) {
+				if Contains(mds, nn) {
+					mdsc++
+				}
 			}
 		}
 		if mdsc > mxmdsc {
@@ -207,9 +230,12 @@ func (g *Graph) MLST9(root string) (*Graph, []string) {
 	dfs = func(node string, parent string) {
 
 		children := []string{}
-		for _, neighbor := range g.adjList[node] {
-			if !visited[neighbor] {
-				children = append(children, neighbor)
+		// 使用 sync.Map 获取邻居节点
+		if neighbors, ok := g.adjList.Load(node); ok {
+			for _, neighbor := range neighbors.([]string) {
+				if !visited[neighbor] {
+					children = append(children, neighbor)
+				}
 			}
 		}
 
@@ -254,33 +280,52 @@ func (g *Graph) MLST10(root string) (*Graph, []string) {
 	var leaves []string
 	connected := map[string]bool{root: true}
 
-	for _, node := range g.adjList[root] {
-		mlstree.AddEdge(root, node)
-		connected[node] = true
+	// 使用 sync.Map 获取 root 节点的邻居
+	if neighbors, ok := g.adjList.Load(root); ok {
+		for _, node := range neighbors.([]string) {
+			mlstree.AddEdge(root, node)
+			connected[node] = true
+		}
 	}
 
-	if len(connected) == len(g.adjList) {
+	count := 0
+	g.adjList.Range(func(key, value interface{}) bool {
+		count++
+		return true
+	})
+
+	if len(connected) == count {
 		return mlstree, leaves
 	}
+
 	// since graph only include 1-hop and 2-hop nodes, thus the most height of tree is 3
 	// child of root
 	maxUnconnected := -1
 	var nodeSelected string
 	var parent string
 	var nodel []string
-	for _, node := range g.adjList[root] {
-		for _, nn := range g.adjList[node] {
-			if !connected[nn] {
-				unconnectd, l := g.findChildUnconnected(nn, connected)
-				if maxUnconnected < unconnectd {
-					maxUnconnected = unconnectd
-					nodeSelected = nn
-					parent = node
-					nodel = l
+
+	// 遍历根节点的邻居节点
+	if neighbors, ok := g.adjList.Load(root); ok {
+		for _, node := range neighbors.([]string) {
+			// 遍历每个邻居的邻居
+			if nbs, ok := g.adjList.Load(node); ok {
+				for _, nn := range nbs.([]string) {
+					if !connected[nn] {
+						unconnected, l := g.findChildUnconnected(nn, connected)
+						if maxUnconnected < unconnected {
+							maxUnconnected = unconnected
+							nodeSelected = nn
+							parent = node
+							nodel = l
+						}
+					}
 				}
 			}
 		}
 	}
+
+	// 连接节点
 	mlstree.AddEdge(root, parent)
 	connected[parent] = true
 	mlstree.AddEdge(parent, nodeSelected)
@@ -290,55 +335,78 @@ func (g *Graph) MLST10(root string) (*Graph, []string) {
 		connected[l] = true
 	}
 
-	for n, _ := range g.adjList {
-		if !connected[n] {
-			_, neigh := g.findMaxConnectedNeighbor(n, connected)
-			mlstree.AddEdge(neigh, n)
+	// 处理其他未连接的节点
+	g.adjList.Range(func(key, value interface{}) bool {
+		node := key.(string) // 获取当前节点
+		if !connected[node] {
+			_, neigh := g.findMaxConnectedNeighbor(node, connected)
+			mlstree.AddEdge(neigh, node)
 			connected[neigh] = true
 		}
-	}
+		return true // 返回 true 表示继续遍历
+	})
 
+	// 获取叶子节点
 	leaves = mlstree.getLeaves()
 	return mlstree, leaves
 }
 
+// findChildUnconnected 查找某个节点的未连接子节点
 func (g *Graph) findChildUnconnected(node string, connected map[string]bool) (int, []string) {
-	unconnectd := 0
+	unconnected := 0
 	var uns []string
-	for _, n := range g.adjList[node] {
-		if !connected[n] {
-			unconnectd++
-			uns = append(uns, n)
-		}
-	}
-	return unconnectd, uns
-}
 
-func (g *Graph) findMaxConnectedNeighbor(node string, connected map[string]bool) (int, string) {
-
-	maxnn := -1
-	var maxNeighbor string
-	for _, n := range g.adjList[node] {
-		connectd := 0
-		for _, nn := range g.adjList[n] {
-			if connected[nn] {
-				connectd++
+	// 使用 sync.Map 获取邻居节点
+	if neighbors, ok := g.adjList.Load(node); ok {
+		for _, n := range neighbors.([]string) {
+			if !connected[n] {
+				unconnected++
+				uns = append(uns, n)
 			}
 		}
-		if maxnn < connectd {
-			maxnn = connectd
-			maxNeighbor = n
+	}
+	return unconnected, uns
+}
+
+// findMaxConnectedNeighbor 查找一个节点最连接的邻居
+func (g *Graph) findMaxConnectedNeighbor(node string, connected map[string]bool) (int, string) {
+	maxnn := -1
+	var maxNeighbor string
+
+	// 使用 sync.Map 获取邻居节点
+	if neighbors, ok := g.adjList.Load(node); ok {
+		for _, n := range neighbors.([]string) {
+			connectd := 0
+			// 遍历邻居的邻居，计算已连接的邻居数量
+			if nbs, ok := g.adjList.Load(n); ok {
+				for _, nn := range nbs.([]string) {
+					if connected[nn] {
+						connectd++
+					}
+				}
+			}
+			if maxnn < connectd {
+				maxnn = connectd
+				maxNeighbor = n
+			}
 		}
 	}
 	return maxnn, maxNeighbor
 }
 
+// getLeaves 获取树的叶子节点
 func (g *Graph) getLeaves() []string {
 	var leaves []string
-	for n, e := range g.adjList {
-		if n != "root" && len(e) == 1 {
-			leaves = append(leaves, n)
+
+	// 遍历所有节点并查找叶子节点
+	g.adjList.Range(func(key, value interface{}) bool {
+		node := key.(string)
+		neighbors := value.([]string)
+		if node != "root" && len(neighbors) == 1 {
+			leaves = append(leaves, node)
 		}
-	}
+		return true
+	})
+
 	return leaves
 }

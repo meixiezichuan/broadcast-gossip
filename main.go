@@ -13,12 +13,12 @@ import (
 	"syscall"
 )
 
-func runSimulation(node string, port int, wg *sync.WaitGroup, ep int) {
+func runSimulation(node string, port int, wg *sync.WaitGroup, distance int, ep int) {
 	defer wg.Done()
-	runAgent(node, port, ep)
+	runAgent(node, port, distance, ep)
 }
 
-func runAgent(node string, port int, ep int) {
+func runAgent(node string, port int, distance int, ep int) {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	done := make(chan bool, 1)
@@ -29,7 +29,7 @@ func runAgent(node string, port int, ep int) {
 	}()
 	agent := gossip.InitAgent(node, port)
 	fmt.Println(agent.NodeId, "Start Running ", ep, " epoch.")
-	agent.Start(done, ep)
+	agent.Start(done, ep, distance)
 }
 
 func Simulation(ep int) {
@@ -41,7 +41,7 @@ func Simulation(ep int) {
 		port := 9898 + i
 		//port := 9898
 		wg.Add(1)
-		go runSimulation(node, port, &wg, ep)
+		go runSimulation(node, port, &wg, 3, ep)
 	}
 
 	// 等待所有节点完成任务
@@ -72,11 +72,18 @@ func getLocalIP() string {
 
 func main() {
 	ep := 100
+	distance := 100
 	if len(os.Args) > 1 {
 		epstr := os.Args[1]
 		e, err := strconv.Atoi(epstr)
 		if err == nil {
 			ep = e
+		}
+
+		lenstr := os.Args[2]
+		e, err = strconv.Atoi(lenstr)
+		if err == nil {
+			distance = e
 		}
 	}
 
@@ -90,6 +97,6 @@ func main() {
 	if exist {
 		port, _ = strconv.Atoi(strport)
 	}
-	runAgent(node, port, ep)
+	runAgent(node, port, distance, ep)
 	fmt.Println("All nodes have completed their tasks.")
 }
