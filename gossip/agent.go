@@ -232,7 +232,7 @@ func (a *Agent) BroadCast(stopCh chan bool, ep int) {
 
 func (a *Agent) recordMsg(msg common.GossipMessage) {
 	// 打开或创建记录文件
-	file, err := os.OpenFile("gossip_logs.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile("./gossip_logs.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Printf("Error opening file: %v\n", err)
 		return
@@ -249,14 +249,14 @@ func (a *Agent) recordMsg(msg common.GossipMessage) {
 		logContent += fmt.Sprintf("%s %d\n", m.NodeMsg.NodeID, m.NodeMsg.Revision)
 	}
 
-	if _, err := file.WriteString(logContent + "\n"); err != nil {
+	if _, err := file.WriteString(logContent); err != nil {
 		fmt.Printf("Error writing to file: %v\n", err)
 	}
 }
 
 func (a *Agent) isMsgRecorded(nodeID string, revision int) bool {
 	// 打开日志文件
-	file, err := os.Open("gossip_logs.txt")
+	file, err := os.Open("./gossip_logs.txt")
 	if err != nil {
 		fmt.Printf("Error opening file: %v\n", err)
 		return false
@@ -266,7 +266,6 @@ func (a *Agent) isMsgRecorded(nodeID string, revision int) bool {
 	// 按行扫描文件
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		// 每行解析 NodeID 和 Revision
 		var recordedNodeID string
 		var recordedRevision int
 		_, err := fmt.Sscanf(scanner.Text(), "%s %d", &recordedNodeID, &recordedRevision)
