@@ -6,9 +6,8 @@ import (
 	"github.com/meixiezichuan/broadcast-gossip/common"
 	"log"
 	"net"
-	"strings"
 	"strconv"
-	
+	"strings"
 )
 
 func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool, distance int) {
@@ -47,17 +46,17 @@ func (a *Agent) HandleMsg(msg common.GossipMessage, distance int) {
 
 	lastDot := strings.LastIndex(dmsg.NodeID, ".")
 	lastPart := dmsg.NodeID[lastDot+1:]
-	receiveNum, _:= strconv.Atoi(lastPart)
+	receiveNum, _ := strconv.Atoi(lastPart)
 
 	lastDot = strings.LastIndex(a.NodeId, ".")
 	lastPart = a.NodeId[lastDot+1:]
 	num, _ := strconv.Atoi(lastPart)
 
-    distance1 := (receiveNum - num + 255) % 255
-    distance2 := (num - receiveNum + 255) % 255
-    if distance1 > distance && distance2 > distance {
-        return
-    }
+	distance1 := (receiveNum - num + 255) % 255
+	distance2 := (num - receiveNum + 255) % 255
+	if distance1 > distance && distance2 > distance {
+		return
+	}
 	// 加入一跳桶
 	a.WriteMsg(dmsg)
 	a.Graph.AddEdge(a.NodeId, dmsg.NodeID)
@@ -65,9 +64,9 @@ func (a *Agent) HandleMsg(msg common.GossipMessage, distance int) {
 	rev, exist := func() (int, bool) {
 		value, ok := a.NodeBuf.Load(dmsg.NodeID)
 		if ok {
-			return value.(int), true 
+			return value.(int), true
 		}
-		return 0, false 
+		return 0, false
 	}()
 	if exist {
 		if rev < dmsg.Revision {
@@ -123,7 +122,7 @@ func (a *Agent) UpdateMsgs(msg common.NodeMessage, path Path) {
 	}
 
 	if exist {
-		existingHostMsg := value.(HostMsg) 
+		existingHostMsg := value.(HostMsg)
 		sendpath := append(existingHostMsg.SendPaths, path)
 		Hm.SendPaths = sendpath
 	} else {

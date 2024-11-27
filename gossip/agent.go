@@ -10,8 +10,8 @@ import (
 	"os"
 	"sort"
 	"strconv"
-	"time"
 	"sync"
+	"time"
 )
 
 type NodeList []string
@@ -75,8 +75,8 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 	var sendMsgs []common.SendMessage
 	var sendMsgNodeId []string
 	a.Msgs.Range(func(key, value interface{}) bool {
-		n := key.(string)            
-		m := value.(HostMsg) 
+		n := key.(string)
+		m := value.(HostMsg)
 		//s := common.SendMessage{
 		//	PrevNode: n,
 		//	NodeMsg:  m.Msg,
@@ -101,18 +101,13 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 				break
 			}
 		}
-		
+
 		a.Msgs.Delete(n)
-		return true 
+		return true
 	})
 	// Ensure the file is closed when done
 	// add adj information
-	a.NodeBuf.Range(func(key, value interface{}) bool {
-		n := key.(string)
-		v := value.(int)
-		if a.Revision-v > TimeOutRev {
-			return true
-		}
+	for _, n := range a.Graph.FindNeighbor(a.NodeId) {
 		if !common.Contains(sendMsgNodeId, n) {
 			s := common.SendMessage{
 				PrevNode: n,
@@ -120,8 +115,7 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 			}
 			sendMsgs = append(sendMsgs, s)
 		}
-		return true
-	})
+	}
 	sendMsg.Msgs = sendMsgs
 	return sendMsg
 }
@@ -141,7 +135,6 @@ func (a *Agent) Start(stopCh chan bool, ep int, distance int) {
 		conn.Close()
 	}()
 
-	
 	t := rand.Intn(5)
 	time.Sleep(time.Duration(t) * time.Second)
 	go a.BroadCast(stopCh, ep)
@@ -176,7 +169,7 @@ func (a *Agent) DoBroadCast(msg common.GossipMessage) {
 		if !common.IsStructEmpty(m.NodeMsg) {
 			if m.NodeMsg.Revision < 100 {
 				l++
-			}	
+			}
 		}
 	}
 	a.MsgCnt = a.MsgCnt + l
@@ -194,11 +187,11 @@ func (a *Agent) DoBroadCast(msg common.GossipMessage) {
 
 func (a *Agent) BroadCast(stopCh chan bool, ep int) {
 	fmt.Println(a.NodeId, " BroadCast")
-	defer func(){
+	defer func() {
 		fmt.Println(a.NodeId, "Sent Message Count: ", a.MsgCnt, " in ", a.Revision, "epochs")
 		logPath := os.Getenv("LOG_PATH")
 		if logPath == "" {
-			logPath = "." 
+			logPath = "."
 		}
 		filename := logPath + "/" + a.NodeId
 		file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -213,7 +206,7 @@ func (a *Agent) BroadCast(stopCh chan bool, ep int) {
 			fmt.Println("Received stop signal, stopping goroutine")
 			return
 		default:
-			if a.Revision == ep + 10 {
+			if a.Revision == ep+10 {
 				fmt.Println("********", a.NodeId, "ran ", ep, " epoch finished.", "********")
 				//stopCh <- true
 				return
@@ -226,7 +219,7 @@ func (a *Agent) BroadCast(stopCh chan bool, ep int) {
 			msg := a.generateGossipMessage()
 			a.DoBroadCast(msg)
 			a.Revision++
-			time.Sleep(5 * time.Second)			
+			time.Sleep(5 * time.Second)
 		}
 	}
 }
@@ -234,12 +227,12 @@ func (a *Agent) BroadCast(stopCh chan bool, ep int) {
 func (a *Agent) UpdateGraph() {
 	fmt.Println(a.NodeId, " NodeBuf: ", a.NodeBuf)
 	a.NodeBuf.Range(func(key, value interface{}) bool {
-		n := key.(string)  
-		r := value.(int)   
+		n := key.(string)
+		r := value.(int)
 		if a.Revision-r > TimeOutRev {
 			a.Graph.RemoveEdge(a.NodeId, n)
 		}
-		return true 
+		return true
 	})
 }
 
@@ -249,7 +242,7 @@ func (a *Agent) WriteMsg(msg common.NodeMessage) {
 	}
 	logPath := os.Getenv("LOG_PATH")
 	if logPath == "" {
-		logPath = "." 
+		logPath = "."
 	}
 	filename := logPath + "/" + a.NodeId
 	file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
