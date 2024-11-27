@@ -243,6 +243,9 @@ func (a *Agent) recordMsg(msg common.GossipMessage) {
 	logContent := fmt.Sprintf("%s %d\n", msg.Self.NodeID, msg.Self.Revision)
 
 	for _, m := range msg.Msgs {
+		if m.NodeMsg.NodeID == "" {
+			continue
+		}
 		logContent += fmt.Sprintf("%s %d\n", m.NodeMsg.NodeID, m.NodeMsg.Revision)
 	}
 
