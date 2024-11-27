@@ -1,6 +1,7 @@
 package gossip
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"github.com/meixiezichuan/broadcast-gossip/common"
@@ -89,6 +90,10 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 			return paths[i][0] < paths[j][0]
 		})
 		for _, p := range paths {
+			if a.isMsgRecorded(m.Msg.NodeID, m.Msg.Revision) {
+				fmt.Println("Message already recorded:", m.Msg.NodeID, m.Msg.Revision)
+				break
+			}
 			allP := append(p, a.NodeId)
 			if a.PathExistInMLST(allP) {
 				fmt.Println(a.NodeId, allP, "exists in mlst")
@@ -217,11 +222,64 @@ func (a *Agent) BroadCast(stopCh chan bool, ep int) {
 			fmt.Println(a.NodeId, " in ", a.Revision, " graph2: ----")
 			a.Graph.Display()
 			msg := a.generateGossipMessage()
+			a.recordMsg(msg)
 			a.DoBroadCast(msg)
 			a.Revision++
 			time.Sleep(5 * time.Second)
 		}
 	}
+}
+
+func (a *Agent) recordMsg(msg common.GossipMessage) {
+	// 打开或创建记录文件
+	file, err := os.OpenFile("gossip_logs.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Printf("Error opening file: %v\n", err)
+		return
+	}
+	defer file.Close()
+
+	// 创建记录内容
+	logContent := fmt.Sprintf("%s %d\n", msg.Self.NodeID, msg.Self.Revision)
+
+	for _, m := range msg.Msgs {
+		logContent += fmt.Sprintf("%s %d\n", m.NodeMsg.NodeID, m.NodeMsg.Revision)
+	}
+
+	if _, err := file.WriteString(logContent + "\n"); err != nil {
+		fmt.Printf("Error writing to file: %v\n", err)
+	}
+}
+
+func (a *Agent) isMsgRecorded(nodeID string, revision int) bool {
+	// 打开日志文件
+	file, err := os.Open("gossip_logs.txt")
+	if err != nil {
+		fmt.Printf("Error opening file: %v\n", err)
+		return false
+	}
+	defer file.Close()
+
+	// 按行扫描文件
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		// 每行解析 NodeID 和 Revision
+		var recordedNodeID string
+		var recordedRevision int
+		_, err := fmt.Sscanf(scanner.Text(), "%s %d", &recordedNodeID, &recordedRevision)
+		if err != nil {
+			continue
+		}
+		// 如果找到匹配项，返回 true
+		if recordedNodeID == nodeID && recordedRevision == revision {
+			return true
+		}
+	}
+	// 如果读取文件时出错，打印错误
+	if err := scanner.Err(); err != nil {
+		fmt.Printf("Error reading file: %v\n", err)
+	}
+	return false
 }
 
 func (a *Agent) UpdateGraph() {
