@@ -119,7 +119,8 @@ func (a *Agent) UpdateMsgs(msg common.NodeMessage, path Path) {
 	if a.isMsgRecorded(msg.NodeID, msg.Revision) {
 		return
 	}
-	value, exist := a.Msgs.Load(msg.NodeID)
+	key := fmt.Sprintf("%s_%d", msg.NodeID, msg.Revision)
+	value, exist := a.Msgs.Load(key)
 	Hm := HostMsg{
 		Msg: msg,
 	}
@@ -132,5 +133,5 @@ func (a *Agent) UpdateMsgs(msg common.NodeMessage, path Path) {
 		Hm.SendPaths = []Path{path}
 	}
 
-	a.Msgs.Store(msg.NodeID, Hm)
+	a.Msgs.Store(key, Hm)
 }

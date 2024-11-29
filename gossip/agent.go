@@ -69,36 +69,21 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 		return sendMsg
 	}
 
-	//a.Write2DB(self)
-
 	self.Data = common.GenerateNodeInfo()
 	sendMsg.Self = self
 	var sendMsgs []common.SendMessage
 	var sendMsgNodeId []string
+
 	a.Msgs.Range(func(key, value interface{}) bool {
 		n := key.(string)
 		m := value.(HostMsg)
-		//s := common.SendMessage{
-		//	PrevNode: n,
-		//	NodeMsg:  m.Msg,
-		//}
-		//sendMsgs = append(sendMsgs, s)
-		//a.Write2DB(m.Msg)
-
 		paths := m.SendPaths
-		sort.Slice(paths, func(i, j int) bool {
-			return paths[i][0] < paths[j][0]
-		})
+
 		for _, p := range paths {
-			if a.isMsgRecorded(m.Msg.NodeID, m.Msg.Revision) {
-				fmt.Println("Message already recorded:", m.Msg.NodeID, m.Msg.Revision)
-				break
-			}
-			allP := append(p, a.NodeId)
-			if a.PathExistInMLST(allP) {
-				fmt.Println(a.NodeId, allP, "exists in mlst")
+			pn := p[len(p)-1]
+			if a.checkMsgSend(pn) {
 				s := common.SendMessage{
-					PrevNode: p[len(p)-1],
+					PrevNode: pn,
 					NodeMsg:  m.Msg,
 				}
 				sendMsgs = append(sendMsgs, s)
@@ -106,7 +91,6 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 				break
 			}
 		}
-
 		a.Msgs.Delete(n)
 		return true
 	})
@@ -337,4 +321,24 @@ func (a *Agent) SendMsg(baddr string, msg common.GossipMessage) {
 	if err != nil {
 		fmt.Printf("%s Error write UDP: %v\n", a.NodeId, err)
 	}
+}
+
+func (a *Agent) checkMsgSend(prevNode string) bool {
+	neighbors := a.Graph.FindNeighbor(prevNode)
+	sort.Slice(neighbors, func(i, j int) bool {
+		return neighbors[i] < neighbors[j]
+	})
+	myindex := -1 // Default value if not found
+	for i, item := range neighbors {
+		if item == a.NodeId {
+			myindex = i
+			break
+		}
+	}
+
+	random_index := rand.Intn(len(neighbors))
+	if random_index == myindex {
+		return true
+	}
+	return false
 }
