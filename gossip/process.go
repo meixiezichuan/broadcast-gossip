@@ -116,6 +116,9 @@ func (a *Agent) UpdateMsgs(msg common.NodeMessage, path Path) {
 	if msg.Revision >= 100 {
 		return
 	}
+	if a.isMsgRecorded(msg.NodeID, msg.Revision) {
+		return
+	}
 	value, exist := a.Msgs.Load(msg.NodeID)
 	Hm := HostMsg{
 		Msg: msg,
