@@ -642,12 +642,10 @@ func (g *Graph) Sotred() {
 }
 
 func (g *Graph) GetSubgraphWithinHops(startNode string, maxHops int) *Graph {
-	visited := make(map[string]bool)         // 记录已访问的节点
 	subgraph := &Graph{}                     // 存储子图
 	subgraph.adjList = sync.Map{}            // 初始化子图的邻接列表
 	queue := list.New()                      // 使用队列进行BFS
 	queue.PushBack([]string{startNode, "0"}) // 将起始节点和跳数0入队列
-	visited[startNode] = true
 
 	// 将起始节点加入子图
 	//subgraph.AddEdge(startNode, "")
@@ -669,15 +667,11 @@ func (g *Graph) GetSubgraphWithinHops(startNode string, maxHops int) *Graph {
 		}
 
 		for _, neighbor := range g.FindNeighbor(node) {
-			if !visited[neighbor] {
-				// 记录访问过的节点
-				visited[neighbor] = true
-
+			if !subgraph.PathExists([]string{node, neighbor}) {
 				// 将邻居加入子图
 				subgraph.AddEdge(node, neighbor)
 
 				// 将邻居和跳数入队
-
 				queue.PushBack([]string{neighbor, fmt.Sprint(hops + 1)})
 			}
 		}
