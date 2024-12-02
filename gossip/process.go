@@ -83,6 +83,10 @@ func (a *Agent) HandleMsg(msg common.GossipMessage, distance int) {
 	// handle other msg
 	for _, m := range msg.Msgs {
 		a.Graph.AddEdge(dmsg.NodeID, m.PrevNode)
+		// add PrevAdj
+		for _, pn := range m.PrevAdj {
+			a.Graph.AddEdge(m.PrevNode, pn)
+		}
 		// handle msg
 		if !common.IsStructEmpty(m.NodeMsg) {
 			a.WriteMsg(m.NodeMsg)
@@ -95,10 +99,10 @@ func (a *Agent) HandleMsg(msg common.GossipMessage, distance int) {
 }
 
 // 处理接收到的Gossip消息
-func (a *Agent) PathExistInMLST(p Path) bool {
+func (a *Agent) PathExistInMLST(g *common.Graph, p Path) bool {
 
 	preNode := p[0]
-	mlst, _ := a.Graph.MLST10(preNode)
+	mlst, _ := g.MLST10(preNode)
 	fmt.Println(a.NodeId, " root: ", preNode, " path: ", p, " mlst: ")
 	mlst.Display()
 	// if node is leaf, return false

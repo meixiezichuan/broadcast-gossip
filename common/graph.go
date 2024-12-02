@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"fmt"
 	"sort"
+	"strconv"
 	"sync"
 )
 
@@ -638,4 +639,50 @@ func (g *Graph) Sotred() {
 	})
 	fmt.Println("After sorted: ---")
 	g.Display()
+}
+
+func (g *Graph) GetSubgraphWithinHops(startNode string, maxHops int) *Graph {
+	visited := make(map[string]bool)         // 记录已访问的节点
+	subgraph := &Graph{}                     // 存储子图
+	subgraph.adjList = sync.Map{}            // 初始化子图的邻接列表
+	queue := list.New()                      // 使用队列进行BFS
+	queue.PushBack([]string{startNode, "0"}) // 将起始节点和跳数0入队列
+	visited[startNode] = true
+
+	// 将起始节点加入子图
+	//subgraph.AddEdge(startNode, "")
+
+	for queue.Len() > 0 {
+		// 获取队列中的元素
+		element := queue.Front()
+		queue.Remove(element)
+		nodeInfo := element.Value.([]string)
+		node := nodeInfo[0]
+		shops := nodeInfo[1]
+		hops, err := strconv.Atoi(shops)
+		if err != nil {
+			break
+		}
+		// 如果跳数大于最大跳数，则停止继续遍历
+		if hops == maxHops {
+			continue
+		}
+
+		for _, neighbor := range g.FindNeighbor(node) {
+			if !visited[neighbor] {
+				// 记录访问过的节点
+				visited[neighbor] = true
+
+				// 将邻居加入子图
+				subgraph.AddEdge(node, neighbor)
+
+				// 将邻居和跳数入队
+
+				queue.PushBack([]string{neighbor, fmt.Sprint(hops + 1)})
+			}
+		}
+
+	}
+
+	return subgraph
 }

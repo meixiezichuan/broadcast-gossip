@@ -9,7 +9,6 @@ import (
 	"math/rand"
 	"net"
 	"os"
-	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -80,10 +79,12 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 		paths := m.SendPaths
 
 		for _, p := range paths {
+			fmt.Println(a.NodeId, p, "exists in mlst")
 			pn := p[len(p)-1]
-			if a.checkMsgSend(pn) {
+			if a.checkMsgSend(p) {
 				s := common.SendMessage{
 					PrevNode: pn,
+					PrevAdj:  a.Graph.FindNeighbor(pn),
 					NodeMsg:  m.Msg,
 				}
 				sendMsgs = append(sendMsgs, s)
@@ -100,6 +101,7 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 		if !common.Contains(sendMsgNodeId, n) {
 			s := common.SendMessage{
 				PrevNode: n,
+				PrevAdj:  a.Graph.FindNeighbor(n),
 				NodeMsg:  common.NodeMessage{},
 			}
 			sendMsgs = append(sendMsgs, s)
@@ -133,8 +135,13 @@ func (a *Agent) Start(stopCh chan bool, ep int, distance int) {
 func (a *Agent) Greeting() common.GossipMessage {
 	dMsgs := []common.SendMessage{}
 	for _, n := range a.Graph.FindNeighbor(a.NodeId) {
+		var prevAdj []string
+		for _, nn := range a.Graph.FindNeighbor(n) {
+			prevAdj = append(prevAdj, nn)
+		}
 		sm := common.SendMessage{
 			PrevNode: n,
+			PrevAdj:  prevAdj,
 		}
 		dMsgs = append(dMsgs, sm)
 	}
@@ -323,21 +330,15 @@ func (a *Agent) SendMsg(baddr string, msg common.GossipMessage) {
 	}
 }
 
-func (a *Agent) checkMsgSend(prevNode string) bool {
-	neighbors := a.Graph.FindNeighbor(prevNode)
-	sort.Slice(neighbors, func(i, j int) bool {
-		return neighbors[i] < neighbors[j]
-	})
-	myindex := -1 // Default value if not found
-	for i, item := range neighbors {
-		if item == a.NodeId {
-			myindex = i
-			break
-		}
-	}
+func (a *Agent) checkMsgSend(p []string) bool {
+	// get local's prevNode
+	prevNode := p[len(p)-1]
 
-	random_index := rand.Intn(len(neighbors))
-	if random_index == myindex {
+	// get subgraph in center of prevNode with hops 2
+	subGraph := a.Graph.GetSubgraphWithinHops(prevNode, 2)
+
+	allP := append(p, a.NodeId)
+	if a.PathExistInMLST(subGraph, allP) {
 		return true
 	}
 	return false

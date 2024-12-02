@@ -15,4 +15,5 @@ type GossipMessage struct {
 type SendMessage struct {
 	PrevNode string
 	NodeMsg  NodeMessage
+	PrevAdj  []string
 }
