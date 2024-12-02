@@ -4,15 +4,16 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/meixiezichuan/broadcast-gossip/common"
 	"log"
-	"math/rand"
 	"net"
 	"os"
 	"sort"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/meixiezichuan/broadcast-gossip/common"
+	"golang.org/x/exp/rand"
 )
 
 type NodeList []string
@@ -140,8 +141,6 @@ func (a *Agent) Start(stopCh chan bool, ep int, distance int) {
 		conn.Close()
 	}()
 
-	t := rand.Intn(5)
-	time.Sleep(time.Duration(t) * time.Second)
 	go a.BroadCast(stopCh, ep)
 	a.ReceiveMsg(conn, stopCh, distance)
 }
@@ -192,6 +191,10 @@ func (a *Agent) DoBroadCast(msg common.GossipMessage) {
 
 func (a *Agent) BroadCast(stopCh chan bool, ep int) {
 	fmt.Println(a.NodeId, " BroadCast")
+	time.Sleep(30 * time.Second)
+	t := rand.Intn(10)
+	time.Sleep(time.Duration(t) * time.Second)
+
 	defer func() {
 		fmt.Println(a.NodeId, "Sent Message Count: ", a.MsgCnt, " in ", a.Revision, "epochs")
 		logPath := os.Getenv("LOG_PATH")
@@ -225,7 +228,7 @@ func (a *Agent) BroadCast(stopCh chan bool, ep int) {
 			a.recordMsg(msg)
 			a.DoBroadCast(msg)
 			a.Revision++
-			time.Sleep(5 * time.Second)
+			time.Sleep(10 * time.Second)
 		}
 	}
 }
