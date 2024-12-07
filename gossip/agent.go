@@ -79,7 +79,7 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 		paths := m.SendPaths
 
 		for _, p := range paths {
-			fmt.Println(a.NodeId, p, "exists in mlst")
+			//fmt.Println(a.NodeId, p, "exists in mlst")
 			pn := p[len(p)-1]
 			if a.checkMsgSend(p) {
 				s := common.SendMessage{
@@ -117,7 +117,7 @@ func (a *Agent) Start(stopCh chan bool, ep int, distance int) {
 	if err != nil {
 		log.Fatalf("Failed to resolve UDP address: %v", err)
 	}
-	fmt.Println(a.NodeId, " udpListen: ", addr)
+	//fmt.Println(a.NodeId, " udpListen: ", addr)
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
 		log.Fatalf("%s Failed to listen on UDP: %v", a.NodeId, err)
@@ -126,8 +126,6 @@ func (a *Agent) Start(stopCh chan bool, ep int, distance int) {
 		conn.Close()
 	}()
 
-	t := rand.Intn(5)
-	time.Sleep(time.Duration(t) * time.Second)
 	go a.BroadCast(stopCh, ep)
 	a.ReceiveMsg(conn, stopCh, distance)
 }
@@ -156,14 +154,14 @@ func (a *Agent) Greeting() common.GossipMessage {
 	return greeting
 }
 
-func (a *Agent) DoBroadCast(msg common.GossipMessage) {
+func (a *Agent) DoBroadCast(msg common.GossipMessage, ep int) {
 	l := 0
-	if a.Revision < 100 {
+	if a.Revision < ep {
 		l++
 	}
 	for _, m := range msg.Msgs {
 		if !common.IsStructEmpty(m.NodeMsg) {
-			if m.NodeMsg.Revision < 100 {
+			if m.NodeMsg.Revision < ep {
 				l++
 			}
 		}
@@ -178,13 +176,16 @@ func (a *Agent) DoBroadCast(msg common.GossipMessage) {
 		baddr := a.BroadcastAddr
 		a.SendMsg(baddr, msg)
 	}
-	fmt.Println(a.NodeId, "Send ", "msg: %v", msg)
+	//fmt.Println(a.NodeId, "Send ", "msg: %v", msg)
 }
 
 func (a *Agent) BroadCast(stopCh chan bool, ep int) {
-	fmt.Println(a.NodeId, " BroadCast")
+	//fmt.Println(a.NodeId, " BroadCast")
+	t := rand.Intn(10)
+	time.Sleep(time.Duration(t) * time.Second)
+	time.Sleep(120 * time.Second)
 	defer func() {
-		fmt.Println(a.NodeId, "Sent Message Count: ", a.MsgCnt, " in ", a.Revision, "epochs")
+		//fmt.Println(a.NodeId, "Sent Message Count: ", a.MsgCnt, " in ", a.Revision, "epochs")
 		logPath := os.Getenv("LOG_PATH")
 		if logPath == "" {
 			logPath = "."
@@ -202,21 +203,21 @@ func (a *Agent) BroadCast(stopCh chan bool, ep int) {
 			fmt.Println("Received stop signal, stopping goroutine")
 			return
 		default:
-			if a.Revision == ep+10 {
+			if a.Revision == ep+20 {
 				fmt.Println("********", a.NodeId, "ran ", ep, " epoch finished.", "********")
 				//stopCh <- true
 				return
 			}
 			fmt.Println(a.NodeId, " in ", a.Revision, " graph1: ----")
-			a.Graph.Display()
+			//a.Graph.Display()
 			a.UpdateGraph()
 			fmt.Println(a.NodeId, " in ", a.Revision, " graph2: ----")
-			a.Graph.Display()
+			//a.Graph.Display()
 			msg := a.generateGossipMessage()
 			a.recordMsg(msg)
-			a.DoBroadCast(msg)
+			a.DoBroadCast(msg, ep)
 			a.Revision++
-			time.Sleep(5 * time.Second)
+			time.Sleep(30 * time.Second)
 		}
 	}
 }

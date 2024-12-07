@@ -1,7 +1,6 @@
 package common
 
 import (
-	"fmt"
 	"sort"
 )
 
@@ -132,7 +131,7 @@ func (g *Graph) MLST6(root string) int {
 // Function to connect root to MDS nodes and minimize tree size
 func (g *Graph) ConnectRootToMDS(root string) *Graph {
 	mds := g.MinDominatingSetFromRoot(root)
-	fmt.Println("mds: ", mds)
+	//fmt.Println("mds: ", mds)
 	tree := NewGraph()
 	tree.root = root
 	connected := map[string]bool{root: true}

@@ -304,7 +304,7 @@ func (g *Graph) DFS(root string, dp map[string]DPState) {
 		}
 		visited[node] = true // 标记为已访问
 
-		fmt.Println("node: ", node)
+		//fmt.Println("node: ", node)
 		dp[node] = DPState{0, 1} // 初始化包含当前节点
 		if neighbors, ok := g.adjList.Load(node); ok {
 			for _, neighbor := range neighbors.([]string) {
@@ -628,8 +628,8 @@ func (g *Graph) Display() {
 }
 
 func (g *Graph) Sotred() {
-	fmt.Println("Before sorted: ---")
-	g.Display()
+	//fmt.Println("Before sorted: ---")
+	//g.Display()
 	g.adjList.Range(func(key, value interface{}) bool {
 		vertex := key.(string)
 		edges := value.([]string)
@@ -637,8 +637,8 @@ func (g *Graph) Sotred() {
 		g.adjList.Store(vertex, sortedEdges)
 		return true
 	})
-	fmt.Println("After sorted: ---")
-	g.Display()
+	//fmt.Println("After sorted: ---")
+	//g.Display()
 }
 
 func (g *Graph) GetSubgraphWithinHops(startNode string, maxHops int) *Graph {

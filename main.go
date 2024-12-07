@@ -4,6 +4,7 @@ import (
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/meixiezichuan/broadcast-gossip/gossip"
+	"math"
 	"math/rand"
 	"net"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
 )
 
 func runSimulation(node string, port int, wg *sync.WaitGroup, distance int, ep int) {
@@ -28,7 +30,7 @@ func runAgent(node string, port int, distance int, ep int) {
 		done <- true
 	}()
 	agent := gossip.InitAgent(node, port)
-	fmt.Println(agent.NodeId, "Start Running ", ep, " epoch.")
+	//fmt.Println(agent.NodeId, "Start Running ", ep, " epoch.")
 	agent.Start(done, ep, distance)
 }
 
@@ -62,12 +64,23 @@ func getLocalIP() string {
 		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
 			if ipNet.IP.To4() != nil {
 				ip = ipNet.IP.String()
-				fmt.Println("Local IP address:", ip)
+				//fmt.Println("Local IP address:", ip)
 				return ip
 			}
 		}
 	}
 	return ip
+}
+func RandomWithExpectation(value float64) int {
+	rand.Seed(time.Now().UnixNano())
+	lower := int(math.Floor(value))
+	upper := lower + 1
+	probabilityLower := float64(upper) - value
+	random := rand.Float64()
+	if random < probabilityLower {
+		return lower
+	}
+	return upper
 }
 
 func main() {
@@ -81,9 +94,9 @@ func main() {
 		}
 
 		lenstr := os.Args[2]
-		e, err = strconv.Atoi(lenstr)
+		f, err := strconv.ParseFloat(lenstr, 64)
 		if err == nil {
-			distance = e
+			distance = RandomWithExpectation(f)
 		}
 	}
 

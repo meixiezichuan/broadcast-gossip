@@ -11,8 +11,8 @@ import (
 )
 
 func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool, distance int) {
-	fmt.Println(a.NodeId, " receive msg ")
-	buf := make([]byte, 65535)
+	//fmt.Println(a.NodeId, " receive msg ")
+	buf := make([]byte, 655350)
 	for {
 		select {
 		case <-stopCh:
@@ -24,7 +24,7 @@ func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool, distance int) 
 				//log.Printf("%s Failed to read UDP message: %v", a.NodeId, err)
 				continue
 			}
-			fmt.Println(a.NodeId, " receive msg n: ", n)
+			//fmt.Println(a.NodeId, " receive msg n: ", n)
 			var msg common.GossipMessage
 			if err := json.Unmarshal(buf[:n], &msg); err != nil {
 				log.Printf("Failed to unmarshal message: %v", err)
@@ -104,7 +104,7 @@ func (a *Agent) PathExistInMLST(g *common.Graph, p Path) bool {
 	preNode := p[0]
 	mlst, _ := g.MLST10(preNode)
 	fmt.Println(a.NodeId, " root: ", preNode, " path: ", p, " mlst: ")
-	mlst.Display()
+	//mlst.Display()
 	// if node is leaf, return false
 	if mlst.IsLeaf(a.NodeId) {
 		return false
