@@ -662,7 +662,7 @@ func (g *Graph) GetSubgraphWithinHops(startNode string, maxHops int) *Graph {
 			break
 		}
 		// 如果跳数大于最大跳数，则停止继续遍历
-		if hops == maxHops {
+		if hops >= maxHops {
 			continue
 		}
 

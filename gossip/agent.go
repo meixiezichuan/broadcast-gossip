@@ -41,7 +41,7 @@ type Agent struct {
 	BroadcastList []string
 }
 
-var TimeOutRev = 5
+var TimeOutRev = 3
 
 func InitAgent(nodeId string, port int) *Agent {
 	agent := Agent{
@@ -113,7 +113,7 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 
 func (a *Agent) Start(stopCh chan bool, ep int, distance int) {
 	addr, err := net.ResolveUDPAddr("udp", a.ListenAddr)
-	TimeOutRev = ep
+	//TimeOutRev = ep
 	if err != nil {
 		log.Fatalf("Failed to resolve UDP address: %v", err)
 	}
@@ -127,7 +127,7 @@ func (a *Agent) Start(stopCh chan bool, ep int, distance int) {
 	}()
 
 	go a.BroadCast(stopCh, ep)
-	a.ReceiveMsg(conn, stopCh, distance)
+	a.ReceiveMsg(conn, stopCh, distance, ep)
 }
 
 func (a *Agent) Greeting() common.GossipMessage {
@@ -181,7 +181,7 @@ func (a *Agent) DoBroadCast(msg common.GossipMessage, ep int) {
 
 func (a *Agent) BroadCast(stopCh chan bool, ep int) {
 	//fmt.Println(a.NodeId, " BroadCast")
-	t := rand.Intn(10)
+	t := rand.Intn(30)
 	time.Sleep(time.Duration(t) * time.Second)
 	time.Sleep(120 * time.Second)
 	defer func() {

@@ -1,7 +1,9 @@
 package common
 
 import (
+	"encoding/binary"
 	"golang.org/x/exp/rand"
+	"net"
 	"reflect"
 	"strconv"
 )
@@ -43,4 +45,8 @@ func Contains(slice []string, value string) bool {
 		}
 	}
 	return false
+}
+
+func Ip2int(ip net.IP) uint32 {
+	return binary.LittleEndian.Uint32(ip.To4())
 }

@@ -6,11 +6,9 @@ import (
 	"github.com/meixiezichuan/broadcast-gossip/common"
 	"log"
 	"net"
-	"strconv"
-	"strings"
 )
 
-func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool, distance int) {
+func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool, distance int, ep int) {
 	//fmt.Println(a.NodeId, " receive msg ")
 	buf := make([]byte, 655350)
 	for {
@@ -30,31 +28,33 @@ func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool, distance int) 
 				log.Printf("Failed to unmarshal message: %v", err)
 				continue
 			}
-			a.HandleMsg(msg, distance)
+			a.HandleMsg(msg, distance, ep)
 		}
 	}
 }
 
-func (a *Agent) HandleMsg(msg common.GossipMessage, distance int) {
+func (a *Agent) HandleMsg(msg common.GossipMessage, distance int, ep int) {
 	fmt.Println(a.NodeId, "handle ", msg)
 	//1. first get network topo
 	// get direct node msg
 	dmsg := msg.Self
-	if dmsg.NodeID == a.NodeId {
-		return
-	}
+	parentIP := common.Ip2int(net.ParseIP(dmsg.NodeID))
+	localIP := common.Ip2int(net.ParseIP(a.NodeId))
+	//lastDot := strings.LastIndex(dmsg.NodeID, ".")
+	//lastPart := dmsg.NodeID[lastDot+1:]
+	//receiveNum, _ := strconv.Atoi(lastPart)
+	//
+	//lastDot = strings.LastIndex(a.NodeId, ".")
+	//lastPart = a.NodeId[lastDot+1:]
+	//num, _ := strconv.Atoi(lastPart)
 
-	lastDot := strings.LastIndex(dmsg.NodeID, ".")
-	lastPart := dmsg.NodeID[lastDot+1:]
-	receiveNum, _ := strconv.Atoi(lastPart)
-
-	lastDot = strings.LastIndex(a.NodeId, ".")
-	lastPart = a.NodeId[lastDot+1:]
-	num, _ := strconv.Atoi(lastPart)
-
-	distance1 := (receiveNum - num + 255) % 255
-	distance2 := (num - receiveNum + 255) % 255
-	if distance1 > distance && distance2 > distance {
+	//distance1 := (receiveNum - num + 255) % 255
+	//distance2 := (num - receiveNum + 255) % 255
+	//if distance1 > distance && distance2 > distance {
+	//	return
+	//}
+	mdis := int(parentIP - localIP)
+	if mdis < (-1*distance) || mdis > distance {
 		return
 	}
 	// 加入一跳桶
@@ -78,7 +78,7 @@ func (a *Agent) HandleMsg(msg common.GossipMessage, distance int) {
 
 	// add msg
 	path := Path{dmsg.NodeID}
-	a.UpdateMsgs(dmsg, path)
+	a.UpdateMsgs(dmsg, path, ep)
 
 	// handle other msg
 	for _, m := range msg.Msgs {
@@ -92,7 +92,7 @@ func (a *Agent) HandleMsg(msg common.GossipMessage, distance int) {
 			a.WriteMsg(m.NodeMsg)
 			path = Path{m.PrevNode, dmsg.NodeID}
 			if m.NodeMsg.NodeID != a.NodeId {
-				a.UpdateMsgs(m.NodeMsg, path)
+				a.UpdateMsgs(m.NodeMsg, path, ep)
 			}
 		}
 	}
@@ -116,8 +116,8 @@ func (a *Agent) PathExistInMLST(g *common.Graph, p Path) bool {
 	return false
 }
 
-func (a *Agent) UpdateMsgs(msg common.NodeMessage, path Path) {
-	if msg.Revision >= 100 {
+func (a *Agent) UpdateMsgs(msg common.NodeMessage, path Path, ep int) {
+	if msg.Revision >= ep {
 		return
 	}
 	if a.isMsgRecorded(msg.NodeID, msg.Revision) {
