@@ -181,9 +181,14 @@ func (a *Agent) DoBroadCast(msg common.GossipMessage, ep int) {
 
 func (a *Agent) BroadCast(stopCh chan bool, ep int) {
 	//fmt.Println(a.NodeId, " BroadCast")
-	t := rand.Intn(30)
+	now := time.Now()
+	nextTenMinute := now.Truncate(5 * time.Minute).Add(10 * time.Minute) // 下一个整五分钟
+	sleepDuration := time.Until(nextTenMinute)
+	time.Sleep(sleepDuration)
+
+	t := rand.Intn(10)
 	time.Sleep(time.Duration(t) * time.Second)
-	time.Sleep(120 * time.Second)
+	//time.Sleep(120 * time.Second)
 	defer func() {
 		//fmt.Println(a.NodeId, "Sent Message Count: ", a.MsgCnt, " in ", a.Revision, "epochs")
 		logPath := os.Getenv("LOG_PATH")
@@ -288,8 +293,8 @@ func (a *Agent) UpdateGraph() {
 	})
 }
 
-func (a *Agent) WriteMsg(msg common.NodeMessage) {
-	if msg.Revision >= 100 {
+func (a *Agent) WriteMsg(msg common.NodeMessage, ep int) {
+	if msg.Revision >= ep {
 		return
 	}
 	logPath := os.Getenv("LOG_PATH")
