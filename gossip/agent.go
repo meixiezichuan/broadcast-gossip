@@ -182,7 +182,7 @@ func (a *Agent) DoBroadCast(msg common.GossipMessage, ep int) {
 func (a *Agent) BroadCast(stopCh chan bool, ep int) {
 	//fmt.Println(a.NodeId, " BroadCast")
 	now := time.Now()
-	nextTenMinute := now.Truncate(5 * time.Minute).Add(10 * time.Minute) // 下一个整五分钟
+	nextTenMinute := now.Truncate(5 * time.Minute).Add(5 * time.Minute) // 下一个整五分钟
 	sleepDuration := time.Until(nextTenMinute)
 	time.Sleep(sleepDuration)
 
