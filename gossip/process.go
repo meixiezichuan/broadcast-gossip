@@ -34,12 +34,17 @@ func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool, distance int, 
 }
 
 func (a *Agent) HandleMsg(msg common.GossipMessage, distance int, ep int) {
-	fmt.Println(a.NodeId, "handle ", msg)
+
 	//1. first get network topo
 	// get direct node msg
 	dmsg := msg.Self
 	parentIP := common.Ip2int(net.ParseIP(dmsg.NodeID))
 	localIP := common.Ip2int(net.ParseIP(a.NodeId))
+
+	if dmsg.NodeID == a.NodeId {
+		return
+	}
+
 	//lastDot := strings.LastIndex(dmsg.NodeID, ".")
 	//lastPart := dmsg.NodeID[lastDot+1:]
 	//receiveNum, _ := strconv.Atoi(lastPart)
@@ -53,10 +58,12 @@ func (a *Agent) HandleMsg(msg common.GossipMessage, distance int, ep int) {
 	//if distance1 > distance && distance2 > distance {
 	//	return
 	//}
+	fmt.Printf("localIP: %s, %d , parentIP: %s, %d \n", a.NodeId, localIP, dmsg.NodeID, parentIP)
 	mdis := int(parentIP - localIP)
 	if mdis < (-1*distance) || mdis > distance {
 		return
 	}
+	fmt.Println(a.NodeId, "handle ", dmsg.NodeID)
 	// 加入一跳桶
 	a.WriteMsg(dmsg)
 	a.Graph.AddEdge(a.NodeId, dmsg.NodeID)

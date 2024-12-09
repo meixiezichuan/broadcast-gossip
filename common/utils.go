@@ -48,5 +48,5 @@ func Contains(slice []string, value string) bool {
 }
 
 func Ip2int(ip net.IP) uint32 {
-	return binary.LittleEndian.Uint32(ip.To4())
+	return binary.BigEndian.Uint32(ip.To4())
 }

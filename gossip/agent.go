@@ -41,7 +41,7 @@ type Agent struct {
 	BroadcastList []string
 }
 
-var TimeOutRev = 3
+var TimeOutRev = 6
 
 func InitAgent(nodeId string, port int) *Agent {
 	agent := Agent{
@@ -113,7 +113,7 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 
 func (a *Agent) Start(stopCh chan bool, ep int, distance int) {
 	addr, err := net.ResolveUDPAddr("udp", a.ListenAddr)
-	//TimeOutRev = ep
+	TimeOutRev = ep
 	if err != nil {
 		log.Fatalf("Failed to resolve UDP address: %v", err)
 	}
