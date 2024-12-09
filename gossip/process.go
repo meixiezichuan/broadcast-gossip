@@ -65,7 +65,7 @@ func (a *Agent) HandleMsg(msg common.GossipMessage, distance int, ep int) {
 	}
 	fmt.Println(a.NodeId, "handle ", dmsg.NodeID)
 	// 加入一跳桶
-	a.WriteMsg(dmsg)
+	a.WriteMsg(dmsg, ep)
 	a.Graph.AddEdge(a.NodeId, dmsg.NodeID)
 
 	rev, exist := func() (int, bool) {
@@ -96,7 +96,7 @@ func (a *Agent) HandleMsg(msg common.GossipMessage, distance int, ep int) {
 		}
 		// handle msg
 		if !common.IsStructEmpty(m.NodeMsg) {
-			a.WriteMsg(m.NodeMsg)
+			a.WriteMsg(m.NodeMsg, ep)
 			path = Path{m.PrevNode, dmsg.NodeID}
 			if m.NodeMsg.NodeID != a.NodeId {
 				a.UpdateMsgs(m.NodeMsg, path, ep)
