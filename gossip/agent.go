@@ -51,6 +51,8 @@ func InitAgent(nodeId string, port int) *Agent {
 		Revision:      0,
 		Graph:         common.NewGraph(),
 		MsgCnt:        0,
+		NodeBuf:       sync.Map{},
+		Msgs:          sync.Map{},
 	}
 	return &agent
 }
