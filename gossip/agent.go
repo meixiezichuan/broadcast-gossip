@@ -127,7 +127,7 @@ func (a *Agent) Start(stopCh chan bool, ep int, distance int) {
 	t := rand.Intn(5)
 	time.Sleep(time.Duration(t) * time.Second)
 	go a.BroadCast(stopCh, ep)
-	a.ReceiveMsg(conn, stopCh, distance)
+	a.ReceiveMsg(conn, stopCh, distance, ep)
 }
 
 func (a *Agent) Greeting() common.GossipMessage {
@@ -280,8 +280,8 @@ func (a *Agent) UpdateGraph() {
 	})
 }
 
-func (a *Agent) WriteMsg(msg common.NodeMessage) {
-	if msg.Revision >= 100 {
+func (a *Agent) WriteMsg(msg common.NodeMessage, ep int) {
+	if msg.Revision >= ep {
 		return
 	}
 	logPath := os.Getenv("LOG_PATH")

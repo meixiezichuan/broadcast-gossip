@@ -4,6 +4,7 @@ import (
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/meixiezichuan/broadcast-gossip/gossip"
+	"math"
 	"math/rand"
 	"net"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
 )
 
 func runSimulation(node string, port int, wg *sync.WaitGroup, distance int, ep int) {
@@ -70,6 +72,18 @@ func getLocalIP() string {
 	return ip
 }
 
+func RandomWithExpectation(value float64) int {
+	rand.Seed(time.Now().UnixNano())
+	lower := int(math.Floor(value))
+	upper := lower + 1
+	probabilityLower := float64(upper) - value
+	random := rand.Float64()
+	if random < probabilityLower {
+		return lower
+	}
+	return upper
+}
+
 func main() {
 	ep := 100
 	distance := 100
@@ -81,9 +95,9 @@ func main() {
 		}
 
 		lenstr := os.Args[2]
-		e, err = strconv.Atoi(lenstr)
+		f, err := strconv.ParseFloat(lenstr, 64)
 		if err == nil {
-			distance = e
+			distance = RandomWithExpectation(f)
 		}
 	}
 
