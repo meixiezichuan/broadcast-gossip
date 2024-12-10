@@ -59,8 +59,9 @@ func (a *Agent) HandleMsg(msg common.GossipMessage, distance int, ep int) {
 	//	return
 	//}
 	fmt.Printf("localIP: %s, %d , parentIP: %s, %d \n", a.NodeId, localIP, dmsg.NodeID, parentIP)
-	mdis := int(parentIP - localIP)
-	if mdis < (-1*distance) || mdis > distance {
+	mdis := int64(parentIP) - int64(localIP)
+	fmt.Printf("localIP: %s, %d , parentIP: %s, %d， distance: %d \n", a.NodeId, localIP, dmsg.NodeID, parentIP, mdis)
+	if mdis < int64(-1*distance) || mdis > int64(distance) {
 		return
 	}
 	fmt.Println(a.NodeId, "handle ", dmsg.NodeID)
