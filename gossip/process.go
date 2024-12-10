@@ -9,8 +9,12 @@ import (
 )
 
 func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool, distance int, ep int) {
-	//fmt.Println(a.NodeId, " receive msg ")
-	buf := make([]byte, 655350)
+	buf := make([]byte, 65507)
+
+	// 创建一个 map，key 为 "NodeID-Revision" 作为唯一标识符，value 为分片 map
+	fragmentMaps := make(map[string]map[int]common.GossipMessageWithChunks)
+	totalChunks := make(map[string]int) // 保存每个 NodeID+Revision 对应的总分片数
+
 	for {
 		select {
 		case <-stopCh:
@@ -19,16 +23,54 @@ func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool, distance int, 
 		default:
 			n, _, err := conn.ReadFromUDP(buf)
 			if err != nil {
-				//log.Printf("%s Failed to read UDP message: %v", a.NodeId, err)
 				continue
 			}
-			//fmt.Println(a.NodeId, " receive msg n: ", n)
-			var msg common.GossipMessage
+
+			// 反序列化消息
+			var msg common.GossipMessageWithChunks
 			if err := json.Unmarshal(buf[:n], &msg); err != nil {
 				log.Printf("Failed to unmarshal message: %v", err)
 				continue
 			}
-			a.HandleMsg(msg, distance, ep)
+
+			// 构造唯一标识符 "NodeID-Revision"
+			uniqueKey := fmt.Sprintf("%s-%d", msg.NodeID, msg.Revision)
+
+			// 如果还没有为该唯一标识符创建 map，需要创建它
+			if _, exists := fragmentMaps[uniqueKey]; !exists {
+				fragmentMaps[uniqueKey] = make(map[int]common.GossipMessageWithChunks)
+			}
+
+			// 将分片存储在该唯一标识符的 map 中，key 为分片索引
+			fragmentMaps[uniqueKey][msg.ChunkIndex] = msg
+
+			// 如果这是第一次接收该消息的分片，记录总的分片数
+			if totalChunks[uniqueKey] == 0 {
+				totalChunks[uniqueKey] = msg.TotalChunks
+			}
+
+			// 如果接收到所有分片，重新组装数据
+			if len(fragmentMaps[uniqueKey]) == totalChunks[uniqueKey] {
+				var fullData []byte
+				for i := 0; i < totalChunks[uniqueKey]; i++ {
+					if fragment, ok := fragmentMaps[uniqueKey][i]; ok {
+						fullData = append(fullData, fragment.Data...)
+					}
+				}
+
+				// 组装完成，处理完整消息
+				var fullMsg common.GossipMessage
+				if err := json.Unmarshal(fullData, &fullMsg); err != nil {
+					log.Printf("Failed to unmarshal full message: %v", err)
+				} else {
+					// 处理完整的 GossipMessage
+					a.HandleMsg(fullMsg, distance, ep)
+				}
+
+				// 清空当前节点的分片数据，准备接收下一条消息
+				delete(fragmentMaps, uniqueKey)
+				delete(totalChunks, uniqueKey)
+			}
 		}
 	}
 }

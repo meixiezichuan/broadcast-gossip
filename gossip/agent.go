@@ -327,12 +327,54 @@ func (a *Agent) SendMsg(baddr string, msg common.GossipMessage) {
 		fmt.Printf("%s Error dialing UDP: %v\n", a.NodeId, err)
 		return
 	}
-
-	bytes, err := json.Marshal(msg)
 	defer conn.Close()
-	_, err = conn.Write(bytes)
+
+	// 将 GossipMessage 序列化为字节
+	bytes, err := json.Marshal(msg)
 	if err != nil {
-		fmt.Printf("%s Error write UDP: %v\n", a.NodeId, err)
+		fmt.Printf("%s Error marshaling message: %v\n", a.NodeId, err)
+		return
+	}
+
+	// 判断数据是否超过最大限制（65507字节）
+	maxPacketSize := 65507
+	totalSize := len(bytes)
+	numChunks := (totalSize + maxPacketSize - 1) / maxPacketSize // 计算分片数量
+
+	// 即使消息大小小于 maxPacketSize，也将其当作一个分片处理
+	for i := 0; i < numChunks; i++ {
+		// 计算每个分片的起始位置和结束位置
+		start := i * maxPacketSize
+		end := start + maxPacketSize
+		if end > totalSize {
+			end = totalSize
+		}
+
+		// 提取分片
+		chunk := bytes[start:end]
+
+		// 构造分片消息
+		chunkMsg := common.GossipMessageWithChunks{
+			ChunkIndex:  i,
+			TotalChunks: numChunks,
+			Data:        chunk,
+			NodeID:      msg.Self.NodeID, // 确保带上 NodeID 和 Revision
+			Revision:    msg.Self.Revision,
+			OriginalMsg: msg, // 存储原始消息
+		}
+
+		// 序列化分片消息
+		chunkBytes, err := json.Marshal(chunkMsg)
+		if err != nil {
+			fmt.Printf("%s Error marshaling chunk message: %v\n", a.NodeId, err)
+			continue
+		}
+
+		// 发送分片
+		_, err = conn.Write(chunkBytes)
+		if err != nil {
+			fmt.Printf("%s Error sending UDP chunk: %v\n", a.NodeId, err)
+		}
 	}
 }
 

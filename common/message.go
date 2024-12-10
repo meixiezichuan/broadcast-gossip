@@ -17,3 +17,11 @@ type SendMessage struct {
 	NodeMsg  NodeMessage
 	PrevAdj  []string
 }
+type GossipMessageWithChunks struct {
+	ChunkIndex  int
+	TotalChunks int
+	Data        []byte
+	NodeID      string
+	Revision    int
+	OriginalMsg GossipMessage
+}
