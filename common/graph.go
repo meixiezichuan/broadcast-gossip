@@ -633,8 +633,8 @@ func (g *Graph) Display() {
 }
 
 func (g *Graph) Sotred() {
-	fmt.Println("Before sorted: ---")
-	g.Display()
+	//fmt.Println("Before sorted: ---")
+	//g.Display()
 	g.adjList.Range(func(key, value interface{}) bool {
 		vertex := key.(string)
 		edges := value.([]string)
@@ -642,8 +642,8 @@ func (g *Graph) Sotred() {
 		g.adjList.Store(vertex, sortedEdges)
 		return true
 	})
-	fmt.Println("After sorted: ---")
-	g.Display()
+	//fmt.Println("After sorted: ---")
+	//g.Display()
 }
 
 func (g *Graph) GetSubgraphWithinHops(startNode string, maxHops int) *Graph {
@@ -667,7 +667,7 @@ func (g *Graph) GetSubgraphWithinHops(startNode string, maxHops int) *Graph {
 			break
 		}
 		// 如果跳数大于最大跳数，则停止继续遍历
-		if hops == maxHops {
+		if hops >= maxHops {
 			continue
 		}
 

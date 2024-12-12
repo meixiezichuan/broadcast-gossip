@@ -182,7 +182,7 @@ func (a *Agent) DoBroadCast(msg common.GossipMessage, ep int) {
 func (a *Agent) BroadCast(stopCh chan bool, ep int) {
 	time.Sleep(60 * time.Second)
 	//t := rand.Intn(5)
-	t := 5
+	t := 20
 	time.Sleep(time.Duration(t) * time.Second)
 	fmt.Println(a.NodeId, " BroadCast")
 	defer func() {
@@ -209,11 +209,11 @@ func (a *Agent) BroadCast(stopCh chan bool, ep int) {
 				//stopCh <- true
 				return
 			}
-			fmt.Println(a.NodeId, " in ", a.Revision, " graph1: ----")
-			a.Graph.Display()
+			//fmt.Println(a.NodeId, " in ", a.Revision, " graph1: ----")
+			//a.Graph.Display()
 			a.UpdateGraph()
-			fmt.Println(a.NodeId, " in ", a.Revision, " graph2: ----")
-			a.Graph.Display()
+			//fmt.Println(a.NodeId, " in ", a.Revision, " graph2: ----")
+			//a.Graph.Display()
 			msg := a.generateGossipMessage()
 			a.recordMsg(msg)
 			a.DoBroadCast(msg, ep)
@@ -278,11 +278,11 @@ func (a *Agent) isMsgRecorded(nodeID string, revision int) bool {
 }
 
 func (a *Agent) UpdateGraph() {
-	fmt.Println(a.NodeId, " NodeBuf: ", a.NodeBuf)
+	//fmt.Println(a.NodeId, " NodeBuf: ", a.NodeBuf)
 	a.NodeBuf.Range(func(key, value interface{}) bool {
 		n := key.(string)
 		r := value.(int)
-		if a.Revision-r > TimeOutRev {
+		if a.Revision-r > TimeOutRev || r-a.Revision > TimeOutRev {
 			a.Graph.RemoveEdge(a.NodeId, n)
 		}
 		return true

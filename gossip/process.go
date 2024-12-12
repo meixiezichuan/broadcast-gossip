@@ -103,8 +103,8 @@ func (a *Agent) PathExistInMLST(g *common.Graph, p Path) bool {
 
 	preNode := p[0]
 	mlst, _ := g.MLST10(preNode)
-	fmt.Println(a.NodeId, " root: ", preNode, " path: ", p, " mlst: ")
-	mlst.Display()
+	//fmt.Println(a.NodeId, " root: ", preNode, " path: ", p, " mlst: ")
+	//mlst.Display()
 	// if node is leaf, return false
 	if mlst.IsLeaf(a.NodeId) {
 		return false
