@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/meixiezichuan/broadcast-gossip/common"
 	"log"
-	"math/rand"
 	"net"
 	"os"
 	"strconv"
@@ -82,13 +81,14 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 			fmt.Println(a.NodeId, p, "exists in mlst")
 			pn := p[len(p)-1]
 			if a.checkMsgSend(p) {
+				//if true {
 				s := common.SendMessage{
 					PrevNode: pn,
 					PrevAdj:  a.Graph.FindNeighbor(pn),
 					NodeMsg:  m.Msg,
 				}
 				sendMsgs = append(sendMsgs, s)
-				sendMsgNodeId = append(sendMsgNodeId, m.Msg.NodeID)
+				sendMsgNodeId = append(sendMsgNodeId, pn)
 				break
 			}
 		}
@@ -126,10 +126,8 @@ func (a *Agent) Start(stopCh chan bool, ep int, distance int) {
 		conn.Close()
 	}()
 
-	t := rand.Intn(5)
-	time.Sleep(time.Duration(t) * time.Second)
 	go a.BroadCast(stopCh, ep)
-	a.ReceiveMsg(conn, stopCh, distance)
+	a.ReceiveMsg(conn, stopCh, distance, ep)
 }
 
 func (a *Agent) Greeting() common.GossipMessage {
@@ -156,14 +154,14 @@ func (a *Agent) Greeting() common.GossipMessage {
 	return greeting
 }
 
-func (a *Agent) DoBroadCast(msg common.GossipMessage) {
+func (a *Agent) DoBroadCast(msg common.GossipMessage, ep int) {
 	l := 0
-	if a.Revision < 100 {
+	if a.Revision < ep {
 		l++
 	}
 	for _, m := range msg.Msgs {
 		if !common.IsStructEmpty(m.NodeMsg) {
-			if m.NodeMsg.Revision < 100 {
+			if m.NodeMsg.Revision < ep {
 				l++
 			}
 		}
@@ -182,6 +180,10 @@ func (a *Agent) DoBroadCast(msg common.GossipMessage) {
 }
 
 func (a *Agent) BroadCast(stopCh chan bool, ep int) {
+	time.Sleep(60 * time.Second)
+	//t := rand.Intn(5)
+	t := 5
+	time.Sleep(time.Duration(t) * time.Second)
 	fmt.Println(a.NodeId, " BroadCast")
 	defer func() {
 		fmt.Println(a.NodeId, "Sent Message Count: ", a.MsgCnt, " in ", a.Revision, "epochs")
@@ -214,9 +216,9 @@ func (a *Agent) BroadCast(stopCh chan bool, ep int) {
 			a.Graph.Display()
 			msg := a.generateGossipMessage()
 			a.recordMsg(msg)
-			a.DoBroadCast(msg)
+			a.DoBroadCast(msg, ep)
 			a.Revision++
-			time.Sleep(5 * time.Second)
+			time.Sleep(20 * time.Second)
 		}
 	}
 }
@@ -287,8 +289,8 @@ func (a *Agent) UpdateGraph() {
 	})
 }
 
-func (a *Agent) WriteMsg(msg common.NodeMessage) {
-	if msg.Revision >= 100 {
+func (a *Agent) WriteMsg(msg common.NodeMessage, ep int) {
+	if msg.Revision >= ep {
 		return
 	}
 	logPath := os.Getenv("LOG_PATH")

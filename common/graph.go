@@ -121,8 +121,13 @@ func (g *Graph) GetSortedNodes(nodes []string) []string {
 	for key, _ := range nodeDegrees {
 		ns = append(ns, key)
 	}
-	sort.Slice(ns, func(i, j int) bool { return nodeDegrees[ns[i]] > nodeDegrees[ns[j]] })
 
+	sort.Slice(ns, func(i, j int) bool {
+		if nodeDegrees[ns[i]] != nodeDegrees[ns[j]] {
+			return nodeDegrees[ns[i]] > nodeDegrees[ns[j]]
+		}
+		return ns[i] < ns[j]
+	})
 	//fmt.Println("sotr nodes : ", nodes, "------------")
 	//for _, n := range ns {
 	//	fmt.Println("Node: ", n, "Degree: ", nodeDegrees[n])

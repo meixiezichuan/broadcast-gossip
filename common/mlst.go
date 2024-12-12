@@ -336,16 +336,20 @@ func (g *Graph) MLST10(root string) (*Graph, []string) {
 	}
 
 	// 处理其他未连接的节点
-	g.adjList.Range(func(key, value interface{}) bool {
-		node := key.(string) // 获取当前节点
+	nodes := []string{}
+	// 获取所有节点的键
+	g.adjList.Range(func(key, _ interface{}) bool {
+		nodes = append(nodes, key.(string))
+		return true
+	})
+	sortedNodes := g.GetSortedNodes(nodes)
+	for _, node := range sortedNodes {
 		if !connected[node] {
 			_, neigh := g.findMaxConnectedNeighbor(node, connected)
 			mlstree.AddEdge(neigh, node)
 			connected[neigh] = true
 		}
-		return true // 返回 true 表示继续遍历
-	})
-
+	}
 	// 获取叶子节点
 	leaves = mlstree.getLeaves()
 	return mlstree, leaves

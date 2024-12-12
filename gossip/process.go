@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool, distance int) {
+func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool, distance int, ep int) {
 	fmt.Println(a.NodeId, " receive msg ")
 	buf := make([]byte, 65535)
 	for {
@@ -30,12 +30,12 @@ func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool, distance int) 
 				log.Printf("Failed to unmarshal message: %v", err)
 				continue
 			}
-			a.HandleMsg(msg, distance)
+			a.HandleMsg(msg, distance, ep)
 		}
 	}
 }
 
-func (a *Agent) HandleMsg(msg common.GossipMessage, distance int) {
+func (a *Agent) HandleMsg(msg common.GossipMessage, distance int, ep int) {
 	fmt.Println(a.NodeId, "handle ", msg)
 	//1. first get network topo
 	// get direct node msg
@@ -58,7 +58,7 @@ func (a *Agent) HandleMsg(msg common.GossipMessage, distance int) {
 		return
 	}
 	// 加入一跳桶
-	a.WriteMsg(dmsg)
+	a.WriteMsg(dmsg, ep)
 	a.Graph.AddEdge(a.NodeId, dmsg.NodeID)
 
 	rev, exist := func() (int, bool) {
@@ -78,7 +78,7 @@ func (a *Agent) HandleMsg(msg common.GossipMessage, distance int) {
 
 	// add msg
 	path := Path{dmsg.NodeID}
-	a.UpdateMsgs(dmsg, path)
+	a.UpdateMsgs(dmsg, path, ep)
 
 	// handle other msg
 	for _, m := range msg.Msgs {
@@ -89,10 +89,10 @@ func (a *Agent) HandleMsg(msg common.GossipMessage, distance int) {
 		}
 		// handle msg
 		if !common.IsStructEmpty(m.NodeMsg) {
-			a.WriteMsg(m.NodeMsg)
+			a.WriteMsg(m.NodeMsg, ep)
 			path = Path{m.PrevNode, dmsg.NodeID}
 			if m.NodeMsg.NodeID != a.NodeId {
-				a.UpdateMsgs(m.NodeMsg, path)
+				a.UpdateMsgs(m.NodeMsg, path, ep)
 			}
 		}
 	}
@@ -116,8 +116,8 @@ func (a *Agent) PathExistInMLST(g *common.Graph, p Path) bool {
 	return false
 }
 
-func (a *Agent) UpdateMsgs(msg common.NodeMessage, path Path) {
-	if msg.Revision >= 100 {
+func (a *Agent) UpdateMsgs(msg common.NodeMessage, path Path, ep int) {
+	if msg.Revision >= ep {
 		return
 	}
 	if a.isMsgRecorded(msg.NodeID, msg.Revision) {
