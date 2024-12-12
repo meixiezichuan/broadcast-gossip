@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/meixiezichuan/broadcast-gossip/common"
 	"log"
+	"math/rand"
 	"net"
 	"os"
 	"strconv"
@@ -180,9 +181,11 @@ func (a *Agent) DoBroadCast(msg common.GossipMessage, ep int) {
 }
 
 func (a *Agent) BroadCast(stopCh chan bool, ep int) {
-	time.Sleep(60 * time.Second)
-	//t := rand.Intn(5)
-	t := 20
+	now := time.Now()
+	nextTenMinute := now.Truncate(5 * time.Minute).Add(5 * time.Minute) // 下一个整五分钟
+	sleepDuration := time.Until(nextTenMinute)
+	time.Sleep(sleepDuration)
+	t := rand.Intn(20)
 	time.Sleep(time.Duration(t) * time.Second)
 	fmt.Println(a.NodeId, " BroadCast")
 	defer func() {
