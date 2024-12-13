@@ -293,7 +293,7 @@ func (a *Agent) UpdateGraph() {
 }
 
 func (a *Agent) WriteMsg(msg common.NodeMessage, ep int) {
-	if msg.Revision >= ep {
+	if msg.Revision >= ep || msg.Revision == 0 {
 		return
 	}
 	logPath := os.Getenv("LOG_PATH")
