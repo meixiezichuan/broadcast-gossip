@@ -80,8 +80,7 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 		for _, p := range paths {
 			fmt.Println(a.NodeId, p, "exists in mlst")
 			pn := p[len(p)-1]
-			if a.checkMsgSend(p) {
-				//if true {
+			if true {
 				s := common.SendMessage{
 					PrevNode: pn,
 					PrevAdj:  a.Graph.FindNeighbor(pn),
@@ -182,7 +181,7 @@ func (a *Agent) DoBroadCast(msg common.GossipMessage, ep int) {
 func (a *Agent) BroadCast(stopCh chan bool, ep int) {
 	time.Sleep(60 * time.Second)
 	//t := rand.Intn(5)
-	t := 5
+	t := 20
 	time.Sleep(time.Duration(t) * time.Second)
 	fmt.Println(a.NodeId, " BroadCast")
 	defer func() {
@@ -290,7 +289,7 @@ func (a *Agent) UpdateGraph() {
 }
 
 func (a *Agent) WriteMsg(msg common.NodeMessage, ep int) {
-	if msg.Revision >= ep {
+	if msg.Revision >= ep || msg.Revision == 0 {
 		return
 	}
 	logPath := os.Getenv("LOG_PATH")

@@ -6,8 +6,6 @@ import (
 	"github.com/meixiezichuan/broadcast-gossip/common"
 	"log"
 	"net"
-	"strconv"
-	"strings"
 )
 
 func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool, distance int, ep int) {
@@ -44,37 +42,58 @@ func (a *Agent) HandleMsg(msg common.GossipMessage, distance int, ep int) {
 		return
 	}
 
-	lastDot := strings.LastIndex(dmsg.NodeID, ".")
-	lastPart := dmsg.NodeID[lastDot+1:]
-	receiveNum, _ := strconv.Atoi(lastPart)
-
-	lastDot = strings.LastIndex(a.NodeId, ".")
-	lastPart = a.NodeId[lastDot+1:]
-	num, _ := strconv.Atoi(lastPart)
-
-	distance1 := (receiveNum - num + 255) % 255
-	distance2 := (num - receiveNum + 255) % 255
-	if distance1 > distance && distance2 > distance {
+	parentIP := common.Ip2int(net.ParseIP(dmsg.NodeID))
+	localIP := common.Ip2int(net.ParseIP(a.NodeId))
+	mdis := int64(parentIP) - int64(localIP)
+	//fmt.Printf("localIP: %s, %d , parentIP: %s, %d， distance: %d \n", a.NodeId, localIP, dmsg.NodeID, parentIP, mdis)
+	if mdis < int64(-1*distance) || mdis > int64(distance) {
 		return
 	}
+
+	//lastDot := strings.LastIndex(dmsg.NodeID, ".")
+	//lastPart := dmsg.NodeID[lastDot+1:]
+	//receiveNum, _ := strconv.Atoi(lastPart)
+	//
+	//lastDot = strings.LastIndex(a.NodeId, ".")
+	//lastPart = a.NodeId[lastDot+1:]
+	//num, _ := strconv.Atoi(lastPart)
+	//
+	//distance1 := (receiveNum - num + 255) % 255
+	//distance2 := (num - receiveNum + 255) % 255
+	//if distance1 > distance && distance2 > distance {
+	//	return
+	//}
+	//lastDot := strings.LastIndex(dmsg.NodeID, ".")
+	//lastPart := dmsg.NodeID[lastDot+1:]
+	//receiveNum, _ := strconv.Atoi(lastPart)
+	//
+	//lastDot = strings.LastIndex(a.NodeId, ".")
+	//lastPart = a.NodeId[lastDot+1:]
+	//num, _ := strconv.Atoi(lastPart)
+	//
+	//distance1 := (receiveNum - num + 255) % 255
+	//distance2 := (num - receiveNum + 255) % 255
+	//if distance1 > distance && distance2 > distance {
+	//	return
+	//}
 	// 加入一跳桶
 	a.WriteMsg(dmsg, ep)
 	a.Graph.AddEdge(a.NodeId, dmsg.NodeID)
 
-	rev, exist := func() (int, bool) {
-		value, ok := a.NodeBuf.Load(dmsg.NodeID)
-		if ok {
-			return value.(int), true
-		}
-		return 0, false
-	}()
-	if exist {
-		if rev < dmsg.Revision {
-			a.NodeBuf.Store(dmsg.NodeID, dmsg.Revision)
-		}
-	} else {
-		a.NodeBuf.Store(dmsg.NodeID, dmsg.Revision)
-	}
+	//rev, exist := func() (int, bool) {
+	//	value, ok := a.NodeBuf.Load(dmsg.NodeID)
+	//	if ok {
+	//		return value.(int), true
+	//	}
+	//	return 0, false
+	//}()
+	//if exist {
+	//	if rev < dmsg.Revision {
+	//		a.NodeBuf.Store(dmsg.NodeID, dmsg.Revision)
+	//	}
+	//} else {
+	//	a.NodeBuf.Store(dmsg.NodeID, dmsg.Revision)
+	//}
 
 	// add msg
 	path := Path{dmsg.NodeID}
