@@ -78,7 +78,7 @@ func (a *Agent) HandleMsg(msg common.GossipMessage, distance int, ep int) {
 	//}
 	// 加入一跳桶
 	a.WriteMsg(dmsg, ep)
-	a.Graph.AddEdge(a.NodeId, dmsg.NodeID)
+	//a.Graph.AddEdge(a.NodeId, dmsg.NodeID)
 
 	//rev, exist := func() (int, bool) {
 	//	value, ok := a.NodeBuf.Load(dmsg.NodeID)
@@ -96,22 +96,22 @@ func (a *Agent) HandleMsg(msg common.GossipMessage, distance int, ep int) {
 	//}
 
 	// add msg
-	path := Path{dmsg.NodeID}
-	a.UpdateMsgs(dmsg, path, ep)
+	//path := Path{dmsg.NodeID}
+	a.UpdateMsgs(dmsg, []string{}, ep)
 
 	// handle other msg
 	for _, m := range msg.Msgs {
-		a.Graph.AddEdge(dmsg.NodeID, m.PrevNode)
+		//a.Graph.AddEdge(dmsg.NodeID, m.PrevNode)
 		// add PrevAdj
-		for _, pn := range m.PrevAdj {
-			a.Graph.AddEdge(m.PrevNode, pn)
-		}
+		//for _, pn := range m.PrevAdj {
+		//	a.Graph.AddEdge(m.PrevNode, pn)
+		//}
 		// handle msg
 		if !common.IsStructEmpty(m.NodeMsg) {
 			a.WriteMsg(m.NodeMsg, ep)
-			path = Path{m.PrevNode, dmsg.NodeID}
+			//path = Path{m.PrevNode, dmsg.NodeID}
 			if m.NodeMsg.NodeID != a.NodeId {
-				a.UpdateMsgs(m.NodeMsg, path, ep)
+				a.UpdateMsgs(m.NodeMsg, []string{}, ep)
 			}
 		}
 	}
@@ -143,18 +143,21 @@ func (a *Agent) UpdateMsgs(msg common.NodeMessage, path Path, ep int) {
 		return
 	}
 	key := fmt.Sprintf("%s_%d", msg.NodeID, msg.Revision)
-	value, exist := a.Msgs.Load(key)
+	_, exist := a.Msgs.Load(key)
 	Hm := HostMsg{
-		Msg: msg,
+		Msg:       msg,
+		SendPaths: []Path{path},
 	}
 
-	if exist {
-		existingHostMsg := value.(HostMsg)
-		sendpath := append(existingHostMsg.SendPaths, path)
-		Hm.SendPaths = sendpath
-	} else {
-		Hm.SendPaths = []Path{path}
-	}
+	//if exist {
+	//	existingHostMsg := value.(HostMsg)
+	//	sendpath := append(existingHostMsg.SendPaths, path)
+	//	Hm.SendPaths = sendpath
+	//} else {
+	//	Hm.SendPaths = []Path{path}
+	//}
 
-	a.Msgs.Store(key, Hm)
+	if !exist {
+		a.Msgs.Store(key, Hm)
+	}
 }

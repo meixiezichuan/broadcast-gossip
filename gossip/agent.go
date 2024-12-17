@@ -70,42 +70,48 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 	self.Data = common.GenerateNodeInfo()
 	sendMsg.Self = self
 	var sendMsgs []common.SendMessage
-	var sendMsgNodeId []string
+	//var sendMsgNodeId []string
 
 	a.Msgs.Range(func(key, value interface{}) bool {
 		n := key.(string)
 		m := value.(HostMsg)
-		paths := m.SendPaths
+		//paths := m.SendPaths
 
-		for _, p := range paths {
-			fmt.Println(a.NodeId, p, "exists in mlst")
-			pn := p[len(p)-1]
-			if true {
-				s := common.SendMessage{
-					PrevNode: pn,
-					PrevAdj:  a.Graph.FindNeighbor(pn),
-					NodeMsg:  m.Msg,
-				}
-				sendMsgs = append(sendMsgs, s)
-				sendMsgNodeId = append(sendMsgNodeId, pn)
-				break
-			}
+		//for _, p := range paths {
+		//	fmt.Println(a.NodeId, p, "exists in mlst")
+		//	pn := p[len(p)-1]
+		//	if true {
+		//		s := common.SendMessage{
+		//			PrevNode: pn,
+		//			PrevAdj:  a.Graph.FindNeighbor(pn),
+		//			NodeMsg:  m.Msg,
+		//		}
+		//		sendMsgs = append(sendMsgs, s)
+		//		sendMsgNodeId = append(sendMsgNodeId, pn)
+		//		break
+		//	}
+		//}
+
+		s := common.SendMessage{
+			PrevNode: "",
+			NodeMsg:  m.Msg,
 		}
+		sendMsgs = append(sendMsgs, s)
 		a.Msgs.Delete(n)
 		return true
 	})
 	// Ensure the file is closed when done
 	// add adj information
-	for _, n := range a.Graph.FindNeighbor(a.NodeId) {
-		if !common.Contains(sendMsgNodeId, n) {
-			s := common.SendMessage{
-				PrevNode: n,
-				PrevAdj:  a.Graph.FindNeighbor(n),
-				NodeMsg:  common.NodeMessage{},
-			}
-			sendMsgs = append(sendMsgs, s)
-		}
-	}
+	//for _, n := range a.Graph.FindNeighbor(a.NodeId) {
+	//	if !common.Contains(sendMsgNodeId, n) {
+	//		s := common.SendMessage{
+	//			PrevNode: n,
+	//			PrevAdj:  a.Graph.FindNeighbor(n),
+	//			NodeMsg:  common.NodeMessage{},
+	//		}
+	//		sendMsgs = append(sendMsgs, s)
+	//	}
+	//}
 	sendMsg.Msgs = sendMsgs
 	return sendMsg
 }
@@ -148,7 +154,7 @@ func (a *Agent) Greeting() common.GossipMessage {
 			NodeID:   a.NodeId,
 			Revision: a.Revision,
 		},
-		Msgs: dMsgs,
+		//Msgs: dMsgs,
 	}
 	return greeting
 }
