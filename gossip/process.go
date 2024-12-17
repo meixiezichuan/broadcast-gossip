@@ -10,7 +10,7 @@ import (
 
 func (a *Agent) ReceiveMsg(conn *net.UDPConn, stopCh <-chan bool, distance int, ep int) {
 	fmt.Println(a.NodeId, " receive msg ")
-	buf := make([]byte, 65535)
+	buf := make([]byte, 6553500)
 	for {
 		select {
 		case <-stopCh:

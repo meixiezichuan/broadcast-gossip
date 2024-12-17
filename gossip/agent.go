@@ -185,7 +185,7 @@ func (a *Agent) BroadCast(stopCh chan bool, ep int) {
 	nextTenMinute := now.Truncate(5 * time.Minute).Add(5 * time.Minute) // 下一个整五分钟
 	sleepDuration := time.Until(nextTenMinute)
 	time.Sleep(sleepDuration)
-	t := rand.Intn(20)
+	t := rand.Intn(30)
 	time.Sleep(time.Duration(t) * time.Second)
 	fmt.Println(a.NodeId, " BroadCast")
 	defer func() {
@@ -221,7 +221,7 @@ func (a *Agent) BroadCast(stopCh chan bool, ep int) {
 			a.recordMsg(msg)
 			a.DoBroadCast(msg, ep)
 			a.Revision++
-			time.Sleep(20 * time.Second)
+			time.Sleep(30 * time.Second)
 		}
 	}
 }
