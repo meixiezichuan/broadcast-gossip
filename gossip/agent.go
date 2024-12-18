@@ -71,10 +71,10 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 	self.Data = common.GenerateNodeInfo()
 	sendMsg.Self = self
 	var sendMsgs []common.SendMessage
-	var sendMsgNodeId []string
+	//var sendMsgNodeId []string
 
 	a.Msgs.Range(func(key, value interface{}) bool {
-		n := key.(string)
+		//n := key.(string)
 		m := value.(HostMsg)
 		paths := m.SendPaths
 
@@ -85,28 +85,28 @@ func (a *Agent) generateGossipMessage() common.GossipMessage {
 				//if true {
 				s := common.SendMessage{
 					PrevNode: pn,
-					PrevAdj:  a.Graph.FindNeighbor(pn),
-					NodeMsg:  m.Msg,
+					//PrevAdj:  a.Graph.FindNeighbor(pn),
+					NodeMsg: m.Msg,
 				}
 				sendMsgs = append(sendMsgs, s)
-				sendMsgNodeId = append(sendMsgNodeId, pn)
+				//sendMsgNodeId = append(sendMsgNodeId, pn)
 				break
 			}
 		}
-		a.Msgs.Delete(n)
+		a.Msgs.Delete(key)
 		return true
 	})
 	// Ensure the file is closed when done
 	// add adj information
 	for _, n := range a.Graph.FindNeighbor(a.NodeId) {
-		if !common.Contains(sendMsgNodeId, n) {
-			s := common.SendMessage{
-				PrevNode: n,
-				PrevAdj:  a.Graph.FindNeighbor(n),
-				NodeMsg:  common.NodeMessage{},
-			}
-			sendMsgs = append(sendMsgs, s)
+		//if !common.Contains(sendMsgNodeId, n) {
+		s := common.SendMessage{
+			PrevNode: n,
+			PrevAdj:  a.Graph.FindNeighbor(n),
+			NodeMsg:  common.NodeMessage{},
 		}
+		sendMsgs = append(sendMsgs, s)
+		//}
 	}
 	sendMsg.Msgs = sendMsgs
 	return sendMsg

@@ -87,17 +87,18 @@ func (a *Agent) HandleMsg(msg common.GossipMessage, distance int, ep int) {
 
 	// handle other msg
 	for _, m := range msg.Msgs {
-		a.Graph.AddEdge(dmsg.NodeID, m.PrevNode)
-		// add PrevAdj
-		for _, pn := range m.PrevAdj {
-			a.Graph.AddEdge(m.PrevNode, pn)
-		}
 		// handle msg
 		if !common.IsStructEmpty(m.NodeMsg) {
 			a.WriteMsg(m.NodeMsg, ep)
 			path = Path{m.PrevNode, dmsg.NodeID}
 			if m.NodeMsg.NodeID != a.NodeId {
 				a.UpdateMsgs(m.NodeMsg, path, ep)
+			}
+		} else {
+			// add PrevAdj
+			a.Graph.AddEdge(dmsg.NodeID, m.PrevNode)
+			for _, pn := range m.PrevAdj {
+				a.Graph.AddEdge(m.PrevNode, pn)
 			}
 		}
 	}
