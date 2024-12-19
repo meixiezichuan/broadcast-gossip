@@ -9,7 +9,6 @@ import (
 	"math/rand"
 	"net"
 	"os"
-	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -281,7 +280,7 @@ func (a *Agent) UpdateGraph() {
 }
 
 func (a *Agent) WriteMsg(msg common.NodeMessage, ep int) {
-	if msg.Revision >= ep {
+	if msg.Revision >= ep || msg.Revision == 0 {
 		return
 	}
 	logPath := os.Getenv("LOG_PATH")
@@ -324,20 +323,25 @@ func (a *Agent) SendMsg(baddr string, msg common.GossipMessage) {
 }
 
 func (a *Agent) checkMsgSend(prevNode string) bool {
-	neighbors := a.Graph.FindNeighbor(prevNode)
-	sort.Slice(neighbors, func(i, j int) bool {
-		return neighbors[i] < neighbors[j]
-	})
-	myindex := -1 // Default value if not found
-	for i, item := range neighbors {
-		if item == a.NodeId {
-			myindex = i
-			break
-		}
-	}
-
-	random_index := rand.Intn(len(neighbors))
-	if random_index == myindex {
+	//neighbors := a.Graph.FindNeighbor(prevNode)
+	//sort.Slice(neighbors, func(i, j int) bool {
+	//	return neighbors[i] < neighbors[j]
+	//})
+	//myindex := -1 // Default value if not found
+	//for i, item := range neighbors {
+	//	if item == a.NodeId {
+	//		myindex = i
+	//		break
+	//	}
+	//}
+	//
+	//random_index := rand.Intn(len(neighbors))
+	//if random_index == myindex {
+	//	return true
+	//}
+	//return false
+	random := rand.Float64()
+	if random < 0.5 {
 		return true
 	}
 	return false
